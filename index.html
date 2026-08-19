@@ -3,35 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MUTE - Prueba de carga</title>
+  <title>MUTE - Prueba Sheets</title>
 </head>
 <body>
   <h1>MUTE</h1>
-  <button id="upload_widget">Subir foto</button>
 
-  <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+  <div id="producto">Cargando producto...</div>
 
   <script>
-    const widget = cloudinary.createUploadWidget(
-      {
-        cloudName: "srxrmckc",
-        uploadPreset: "mute-products"
-      },
-      (error, result) => {
-        if (!error && result && result.event === "success") {
-          console.log("Imagen subida:", result.info.secure_url);
-          document.body.insertAdjacentHTML(
-            "beforeend",
-            `<p>URL: ${result.info.secure_url}</p>
-             <img src="${result.info.secure_url}" style="max-width:300px;">`
-          );
-        }
-      }
-    );
+    const CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJppwWF502ACsNbaMq7ol-R20xU4Y79PewbDD3XOjtrRJuuobsCv_Z3L8DadxKKsWb_QrKIFCK3gQ9/pub?gid=0&single=true&output=csv";
 
-    document
-      .getElementById("upload_widget")
-      .addEventListener("click", () => widget.open());
+    async function cargarProducto() {
+      const respuesta = await fetch(CSV_URL);
+      const texto = await respuesta.text();
+
+      const filas = texto.trim().split("\n");
+      const datos = filas[1].split(",");
+
+      const [id, producto, precio, categoria, stock, foto, activo] = datos;
+
+      document.getElementById("producto").innerHTML = `
+        <h2>${producto}</h2>
+        <img src="${foto}" style="max-width:300px">
+        <p><strong>$${Number(precio).toLocaleString("es-AR")}</strong></p>
+        <p>${categoria}</p>
+        <p>Stock interno: ${stock}</p>
+      `;
+    }
+
+    cargarProducto();
   </script>
 </body>
 </html>
