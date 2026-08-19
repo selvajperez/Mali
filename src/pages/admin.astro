@@ -1,0 +1,197 @@
+---
+const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
+const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-products";
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MUTE - Publicar producto</title>
+    <script is:inline src="https://upload-widget.cloudinary.com/global/all.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Publicar producto</h1>
+    </header>
+
+    <main>
+      <form id="form-producto">
+        <div class="campo">
+          <label>Foto</label>
+          <button type="button" id="btn-foto">Elegir foto</button>
+          <img id="preview" alt="" hidden />
+          <input type="hidden" id="fotoUrl" name="fotoUrl" required />
+        </div>
+
+        <div class="campo">
+          <label for="producto">Producto</label>
+          <input type="text" id="producto" name="producto" required />
+        </div>
+
+        <div class="campo">
+          <label for="precio">Precio</label>
+          <input type="number" id="precio" name="precio" min="0" step="1" required />
+        </div>
+
+        <div class="campo">
+          <label for="categoria">Categoría</label>
+          <input type="text" id="categoria" name="categoria" required />
+        </div>
+
+        <div class="campo">
+          <label for="stock">Stock</label>
+          <input type="number" id="stock" name="stock" min="0" step="1" required />
+        </div>
+
+        <button type="submit" id="btn-publicar">Publicar</button>
+        <p id="mensaje" role="status"></p>
+      </form>
+    </main>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #fafafa;
+        color: #222;
+      }
+      header {
+        padding: 1rem;
+        background: #fff;
+        border-bottom: 1px solid #eee;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      main {
+        padding: 1rem;
+        max-width: 480px;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .campo {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      label {
+        font-weight: 600;
+      }
+      input,
+      button {
+        font-size: 1rem;
+        padding: 0.6rem;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+      }
+      #btn-foto {
+        background: #fff;
+      }
+      #preview {
+        max-width: 160px;
+        border-radius: 8px;
+      }
+      #btn-publicar {
+        background: #1a7a3c;
+        color: #fff;
+        border: none;
+        font-weight: 600;
+        padding: 0.9rem;
+      }
+      #btn-publicar:disabled {
+        opacity: 0.6;
+      }
+      #mensaje {
+        min-height: 1.2rem;
+      }
+      #mensaje.error {
+        color: #a11f1f;
+      }
+      #mensaje.ok {
+        color: #1a7a3c;
+      }
+    </style>
+
+    <script define:vars={{ cloudName, uploadPreset }} is:inline>
+      const fotoUrlInput = document.getElementById("fotoUrl");
+      const preview = document.getElementById("preview");
+      const mensaje = document.getElementById("mensaje");
+      const form = document.getElementById("form-producto");
+      const btnPublicar = document.getElementById("btn-publicar");
+
+      const widget = cloudinary.createUploadWidget(
+        {
+          cloudName,
+          uploadPreset,
+          sources: ["camera", "local"],
+          multiple: false,
+        },
+        (error, result) => {
+          if (!error && result && result.event === "success") {
+            fotoUrlInput.value = result.info.secure_url;
+            preview.src = result.info.secure_url;
+            preview.hidden = false;
+          }
+        }
+      );
+
+      document.getElementById("btn-foto").addEventListener("click", () => widget.open());
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        mensaje.textContent = "";
+        mensaje.className = "";
+
+        if (!fotoUrlInput.value) {
+          mensaje.textContent = "Elegí una foto antes de publicar.";
+          mensaje.className = "error";
+          return;
+        }
+
+        const payload = {
+          fotoUrl: fotoUrlInput.value,
+          producto: document.getElementById("producto").value,
+          precio: Number(document.getElementById("precio").value),
+          categoria: document.getElementById("categoria").value,
+          stock: Number(document.getElementById("stock").value),
+        };
+
+        btnPublicar.disabled = true;
+        mensaje.textContent = "Publicando...";
+
+        try {
+          const res = await fetch("/api/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Error HTTP ${res.status}`);
+          }
+
+          mensaje.textContent = "Producto publicado.";
+          mensaje.className = "ok";
+          form.reset();
+          preview.hidden = true;
+          fotoUrlInput.value = "";
+        } catch (err) {
+          mensaje.textContent = "No se pudo publicar: " + err.message;
+          mensaje.className = "error";
+        } finally {
+          btnPublicar.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

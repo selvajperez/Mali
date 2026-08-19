@@ -1,0 +1,79 @@
+---
+import ProductCard from "../components/ProductCard.astro";
+import { getCatalogProducts } from "../lib/sheets";
+
+let products: Awaited<ReturnType<typeof getCatalogProducts>> = [];
+let error: string | null = null;
+
+try {
+  products = await getCatalogProducts();
+} catch (e) {
+  error = e instanceof Error ? e.message : "Error desconocido";
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MUTE - Catálogo</title>
+  </head>
+  <body>
+    <header>
+      <h1>MUTE</h1>
+    </header>
+
+    <main>
+      {error && <p class="error">No se pudo cargar el catálogo: {error}</p>}
+      {!error && products.length === 0 && <p>Todavía no hay productos publicados.</p>}
+      {!error && products.length > 0 && (
+        <div class="grid">
+          {products.map((product) => <ProductCard product={product} />)}
+        </div>
+      )}
+    </main>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #fafafa;
+        color: #222;
+      }
+      header {
+        padding: 1rem;
+        background: #fff;
+        border-bottom: 1px solid #eee;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      main {
+        padding: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+      .error {
+        color: #a11f1f;
+      }
+      @media (min-width: 640px) {
+        .grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (min-width: 960px) {
+        .grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+    </style>
+  </body>
+</html>

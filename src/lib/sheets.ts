@@ -1,0 +1,47 @@
+import { parseCsv } from "./csv";
+import { getStockStatus, type StockStatus } from "./stockStatus";
+
+export interface CatalogProduct {
+  id: string;
+  producto: string;
+  precio: number;
+  categoria: string;
+  fotoUrl: string;
+  estado: StockStatus;
+}
+
+const COLUMNS = ["id", "producto", "precio", "categoria", "stock", "fotoUrl", "activo"] as const;
+
+export async function getCatalogProducts(): Promise<CatalogProduct[]> {
+  const csvUrl = import.meta.env.SHEETS_CSV_URL;
+  if (!csvUrl) {
+    throw new Error("Falta la variable de entorno SHEETS_CSV_URL");
+  }
+
+  const response = await fetch(csvUrl);
+  if (!response.ok) {
+    throw new Error(`No se pudo leer el catálogo (HTTP ${response.status})`);
+  }
+
+  const text = await response.text();
+  const rows = parseCsv(text);
+  const [, ...dataRows] = rows; // descarta encabezado
+
+  return dataRows
+    .map((cells) => {
+      const record: Record<string, string> = {};
+      COLUMNS.forEach((key, i) => {
+        record[key] = (cells[i] ?? "").trim();
+      });
+      return record;
+    })
+    .filter((record) => record.activo.toLowerCase() === "sí" || record.activo.toLowerCase() === "si")
+    .map((record) => ({
+      id: record.id,
+      producto: record.producto,
+      precio: Number(record.precio) || 0,
+      categoria: record.categoria,
+      fotoUrl: record.fotoUrl,
+      estado: getStockStatus(Number(record.stock) || 0),
+    }));
+}

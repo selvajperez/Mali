@@ -1,0 +1,82 @@
+---
+import type { CatalogProduct } from "../lib/sheets";
+
+interface Props {
+  product: CatalogProduct;
+}
+
+const { product } = Astro.props;
+
+const estadoClase: Record<string, string> = {
+  "Agotado": "estado-agotado",
+  "Últimas unidades": "estado-poco",
+  "Disponible": "estado-ok",
+};
+---
+
+<article class="card">
+  <img src={product.fotoUrl} alt={product.producto} loading="lazy" />
+  <div class="info">
+    <h3>{product.producto}</h3>
+    <p class="precio">${product.precio.toLocaleString("es-AR")}</p>
+    <p class="categoria">{product.categoria}</p>
+    <span class={`estado ${estadoClase[product.estado]}`}>{product.estado}</span>
+  </div>
+</article>
+
+<style>
+  .card {
+    border: 1px solid #e2e2e2;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    background: #f2f2f2;
+  }
+  .info {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .info h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .precio {
+    margin: 0;
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+  .categoria {
+    margin: 0;
+    color: #666;
+    font-size: 0.85rem;
+  }
+  .estado {
+    margin-top: 0.25rem;
+    align-self: flex-start;
+    font-size: 0.8rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .estado-ok {
+    background: #dcf5e3;
+    color: #1a7a3c;
+  }
+  .estado-poco {
+    background: #fff3cd;
+    color: #8a6100;
+  }
+  .estado-agotado {
+    background: #f5dcdc;
+    color: #a11f1f;
+  }
+</style>
