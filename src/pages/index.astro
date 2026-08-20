@@ -1,6 +1,8 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
 import { getCatalogProducts } from "../lib/sheets";
+import { CATEGORIES } from "../lib/categories";
+import { STORE_NAME, BRAND_COLOR, BRAND_COLOR_DARK } from "../lib/storeConfig";
 
 let products: Awaited<ReturnType<typeof getCatalogProducts>> = [];
 let error: string | null = null;
@@ -10,6 +12,10 @@ try {
 } catch (e) {
   error = e instanceof Error ? e.message : "Error desconocido";
 }
+
+const categoriasPresentes = CATEGORIES.filter((cat) =>
+  products.some((p) => p.categoria === cat)
+);
 ---
 
 <!doctype html>
@@ -17,26 +23,52 @@ try {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MUTE - Catálogo</title>
+    <title>{STORE_NAME} - Catálogo</title>
   </head>
   <body>
-    <header>
-      <h1>MUTE</h1>
+    <header class="header">
+      <div class="header-top">
+        <span class="logo">{STORE_NAME}</span>
+        <button type="button" class="btn-carrito" aria-label="Ver carrito">
+          🛒
+          <span class="badge-carrito">0</span>
+        </button>
+      </div>
+      <input
+        type="search"
+        id="buscador"
+        class="buscador"
+        placeholder="Buscar productos..."
+        aria-label="Buscar productos"
+      />
     </header>
+
+    {!error && categoriasPresentes.length > 0 && (
+      <nav class="categorias" aria-label="Filtrar por categoría">
+        <button type="button" class="chip chip-activo" data-categoria="Todos">Todos</button>
+        {categoriasPresentes.map((cat) => (
+          <button type="button" class="chip" data-categoria={cat}>{cat}</button>
+        ))}
+      </nav>
+    )}
 
     <main>
       {error && <p class="error">No se pudo cargar el catálogo: {error}</p>}
-      {!error && products.length === 0 && <p>Todavía no hay productos publicados.</p>}
+      {!error && products.length === 0 && <p class="vacio">Todavía no hay productos publicados.</p>}
       {!error && products.length > 0 && (
-        <div class="grid">
+        <div class="grid" id="grid-productos">
           {products.map((product) => <ProductCard product={product} />)}
         </div>
       )}
+      <p class="vacio" id="sin-resultados" hidden>No encontramos productos que coincidan.</p>
     </main>
 
-    <style>
+    <style define:vars={{ brandColor: BRAND_COLOR, brandColorDark: BRAND_COLOR_DARK }}>
       * {
         box-sizing: border-box;
+      }
+      :root {
+        --brand-color: var(--brandColor);
       }
       body {
         margin: 0;
@@ -44,14 +76,95 @@ try {
         background: #fafafa;
         color: #222;
       }
-      header {
-        padding: 1rem;
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
         background: #fff;
         border-bottom: 1px solid #eee;
+        padding: 0.75rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
       }
-      header h1 {
-        margin: 0;
-        font-size: 1.25rem;
+      .header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .logo {
+        font-size: 1.3rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: var(--brandColorDark);
+      }
+      .btn-carrito {
+        position: relative;
+        border: 1px solid #e2e2e2;
+        background: #fff;
+        border-radius: 999px;
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .badge-carrito {
+        position: absolute;
+        top: -0.3rem;
+        right: -0.3rem;
+        background: var(--brandColor);
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        min-width: 1.1rem;
+        height: 1.1rem;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.2rem;
+      }
+      .buscador {
+        width: 100%;
+        padding: 0.65rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid #ddd;
+        font-size: 0.95rem;
+        background: #f5f5f5;
+      }
+      .buscador:focus {
+        outline: 2px solid var(--brandColor);
+        background: #fff;
+      }
+      .categorias {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding: 0.65rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid #eee;
+        scrollbar-width: none;
+      }
+      .categorias::-webkit-scrollbar {
+        display: none;
+      }
+      .chip {
+        flex-shrink: 0;
+        border: 1px solid #ddd;
+        background: #fff;
+        color: #444;
+        border-radius: 999px;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .chip-activo {
+        background: var(--brandColor);
+        border-color: var(--brandColor);
+        color: #fff;
       }
       main {
         padding: 1rem;
@@ -64,9 +177,19 @@ try {
       .error {
         color: #a11f1f;
       }
+      .vacio {
+        color: #666;
+        text-align: center;
+        margin-top: 2rem;
+      }
       @media (min-width: 640px) {
         .grid {
           grid-template-columns: repeat(3, 1fr);
+        }
+        .header,
+        main {
+          padding-left: 2rem;
+          padding-right: 2rem;
         }
       }
       @media (min-width: 960px) {
@@ -75,5 +198,41 @@ try {
         }
       }
     </style>
+
+    <script>
+      const buscador = document.getElementById("buscador") as HTMLInputElement | null;
+      const chips = document.querySelectorAll<HTMLButtonElement>(".chip");
+      const cards = document.querySelectorAll<HTMLElement>("#grid-productos .card");
+      const sinResultados = document.getElementById("sin-resultados");
+
+      let categoriaActiva = "Todos";
+
+      function aplicarFiltros() {
+        const texto = (buscador?.value ?? "").trim().toLowerCase();
+        let visibles = 0;
+
+        cards.forEach((card) => {
+          const coincideTexto = card.dataset.nombre?.includes(texto) ?? true;
+          const coincideCategoria = categoriaActiva === "Todos" || card.dataset.categoria === categoriaActiva;
+          const mostrar = coincideTexto && coincideCategoria;
+          card.style.display = mostrar ? "" : "none";
+          if (mostrar) visibles++;
+        });
+
+        if (sinResultados) {
+          sinResultados.hidden = visibles !== 0;
+        }
+      }
+
+      buscador?.addEventListener("input", aplicarFiltros);
+
+      chips.forEach((chip) => {
+        chip.addEventListener("click", () => {
+          categoriaActiva = chip.dataset.categoria ?? "Todos";
+          chips.forEach((c) => c.classList.toggle("chip-activo", c === chip));
+          aplicarFiltros();
+        });
+      });
+    </script>
   </body>
 </html>
