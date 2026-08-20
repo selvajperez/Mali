@@ -1,0 +1,92 @@
+---
+// Pagina TEMPORAL de diagnostico. No forma parte del flujo real, no guarda
+// nada en Sheets, no esta enlazada desde ningun lado. Borrar cuando se
+// termine de diagnosticar el bug de captura de camara en Android.
+const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
+const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-products";
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test temporal - camara</title>
+    <script is:inline src="https://upload-widget.cloudinary.com/global/all.js"></script>
+  </head>
+  <body>
+    <h1>Página de prueba temporal</h1>
+    <p>No forma parte del catálogo ni del admin real. No guarda nada en Sheets.</p>
+
+    <section>
+      <h2>Variante A — sources: ["local"]</h2>
+      <button type="button" id="btn-local">Abrir (solo local)</button>
+      <pre id="resultado-local"></pre>
+    </section>
+
+    <section>
+      <h2>Variante B — sources: ["camera"]</h2>
+      <button type="button" id="btn-camera">Abrir (solo camera)</button>
+      <pre id="resultado-camera"></pre>
+    </section>
+
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 1rem;
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      section {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      button {
+        font-size: 1rem;
+        padding: 0.6rem 1rem;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        background: #f5f5f5;
+        padding: 0.5rem;
+        border-radius: 6px;
+        min-height: 1.5rem;
+      }
+    </style>
+
+    <script define:vars={{ cloudName, uploadPreset }} is:inline>
+      function crearWidget(sources, resultadoId) {
+        const resultadoEl = document.getElementById(resultadoId);
+        return cloudinary.createUploadWidget(
+          { cloudName, uploadPreset, sources, multiple: false },
+          (error, result) => {
+            if (error) {
+              resultadoEl.textContent = "ERROR:\n" + JSON.stringify(error, null, 2);
+              return;
+            }
+            if (result && result.event === "success") {
+              const info = result.info;
+              resultadoEl.textContent =
+                "OK\n" +
+                "bytes: " + info.bytes + "\n" +
+                "width x height: " + info.width + " x " + info.height + "\n" +
+                "format: " + info.format + "\n" +
+                "url: " + info.secure_url;
+            }
+          }
+        );
+      }
+
+      const widgetLocal = crearWidget(["local"], "resultado-local");
+      const widgetCamera = crearWidget(["camera"], "resultado-camera");
+
+      document.getElementById("btn-local").addEventListener("click", () => widgetLocal.open());
+      document.getElementById("btn-camera").addEventListener("click", () => widgetCamera.open());
+    </script>
+  </body>
+</html>
