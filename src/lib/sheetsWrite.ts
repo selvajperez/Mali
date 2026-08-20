@@ -111,3 +111,96 @@ export async function appendProduct(product: NewProduct): Promise<string> {
 
   return id;
 }
+
+export interface AdminProduct {
+  id: string;
+  producto: string;
+  precio: number;
+  categoria: string;
+  stock: number;
+  fotoUrl: string;
+  activo: boolean;
+}
+
+export interface ProductEdits {
+  producto: string;
+  precio: number;
+  categoria: string;
+  stock: number;
+}
+
+export async function listAllProducts(): Promise<AdminProduct[]> {
+  const { sheets, sheetId } = getSheetsClient();
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: "A2:G",
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+
+  const rows = response.data.values ?? [];
+
+  return rows
+    .filter((row) => (row[0] ?? "").toString().trim() !== "")
+    .map((row) => {
+      const activoRaw = (row[6] ?? "").toString().trim().toLowerCase();
+      return {
+        id: row[0]?.toString() ?? "",
+        producto: row[1]?.toString() ?? "",
+        precio: Number(row[2]) || 0,
+        categoria: row[3]?.toString() ?? "",
+        stock: Number(row[4]) || 0,
+        fotoUrl: row[5]?.toString() ?? "",
+        activo: activoRaw === "sí" || activoRaw === "si",
+      };
+    })
+    .reverse();
+}
+
+async function findRowById(
+  sheets: ReturnType<typeof getSheetsClient>["sheets"],
+  sheetId: string,
+  id: string
+): Promise<number> {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: "A2:A",
+  });
+
+  const ids = response.data.values ?? [];
+  const index = ids.findIndex((row) => row[0]?.toString().trim() === id);
+
+  if (index === -1) {
+    throw new Error(`Producto ${id} no encontrado`);
+  }
+
+  return index + 2; // +2: la data arranca en la fila 2 (fila 1 = encabezado)
+}
+
+export async function updateProductFields(id: string, edits: ProductEdits): Promise<void> {
+  const { sheets, sheetId } = getSheetsClient();
+  const row = await findRowById(sheets, sheetId, id);
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `B${row}:E${row}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[edits.producto, edits.precio, edits.categoria, edits.stock]],
+    },
+  });
+}
+
+export async function setProductActivo(id: string, activo: boolean): Promise<void> {
+  const { sheets, sheetId } = getSheetsClient();
+  const row = await findRowById(sheets, sheetId, id);
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `G${row}:G${row}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[activo ? "sí" : "no"]],
+    },
+  });
+}

@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { appendProduct } from "../../lib/sheetsWrite";
+import { isValidCategory } from "../../lib/categories";
 
 export const prerender = false;
 
@@ -15,7 +16,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (
     typeof producto !== "string" || !producto.trim() ||
-    typeof categoria !== "string" || !categoria.trim() ||
+    !isValidCategory(categoria) ||
     typeof fotoUrl !== "string" || !fotoUrl.trim() ||
     typeof precio !== "number" || !Number.isFinite(precio) || precio < 0 ||
     typeof stock !== "number" || !Number.isFinite(stock) || stock < 0

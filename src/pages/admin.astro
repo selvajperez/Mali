@@ -1,6 +1,18 @@
 ---
+import { CATEGORIES } from "../lib/categories";
+import { listAllProducts } from "../lib/sheetsWrite";
+
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
 const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-products";
+
+let products: Awaited<ReturnType<typeof listAllProducts>> = [];
+let listError: string | null = null;
+
+try {
+  products = await listAllProducts();
+} catch (e) {
+  listError = e instanceof Error ? e.message : "Error desconocido";
+}
 ---
 
 <!doctype html>
@@ -8,46 +20,115 @@ const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-pr
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MUTE - Publicar producto</title>
+    <title>MUTE - Administración</title>
     <script is:inline src="https://upload-widget.cloudinary.com/global/all.js"></script>
   </head>
   <body>
     <header>
-      <h1>Publicar producto</h1>
+      <h1>MUTE - Administración</h1>
     </header>
 
     <main>
-      <form id="form-producto">
-        <div class="campo">
-          <label>Foto</label>
-          <button type="button" id="btn-foto">Elegir foto</button>
-          <img id="preview" alt="" hidden />
-          <input type="hidden" id="fotoUrl" name="fotoUrl" required />
-        </div>
+      <section class="seccion">
+        <h2>Publicar producto nuevo</h2>
+        <form id="form-producto">
+          <div class="campo">
+            <label>Foto</label>
+            <button type="button" id="btn-foto">Elegir foto</button>
+            <img id="preview" alt="" hidden />
+            <input type="hidden" id="fotoUrl" name="fotoUrl" required />
+          </div>
 
-        <div class="campo">
-          <label for="producto">Producto</label>
-          <input type="text" id="producto" name="producto" required />
-        </div>
+          <div class="campo">
+            <label for="producto">Producto</label>
+            <input type="text" id="producto" name="producto" required />
+          </div>
 
-        <div class="campo">
-          <label for="precio">Precio</label>
-          <input type="number" id="precio" name="precio" min="0" step="1" required />
-        </div>
+          <div class="campo">
+            <label for="precio">Precio</label>
+            <input type="number" id="precio" name="precio" min="0" step="1" required />
+          </div>
 
-        <div class="campo">
-          <label for="categoria">Categoría</label>
-          <input type="text" id="categoria" name="categoria" required />
-        </div>
+          <div class="campo">
+            <label for="categoria">Categoría</label>
+            <select id="categoria" name="categoria" required>
+              <option value="" disabled selected>Elegí una categoría</option>
+              {CATEGORIES.map((cat) => <option value={cat}>{cat}</option>)}
+            </select>
+          </div>
 
-        <div class="campo">
-          <label for="stock">Stock</label>
-          <input type="number" id="stock" name="stock" min="0" step="1" required />
-        </div>
+          <div class="campo">
+            <label for="stock">Stock</label>
+            <input type="number" id="stock" name="stock" min="0" step="1" required />
+          </div>
 
-        <button type="submit" id="btn-publicar">Publicar</button>
-        <p id="mensaje" role="status"></p>
-      </form>
+          <button type="submit" id="btn-publicar">Publicar</button>
+          <p id="mensaje" role="status"></p>
+        </form>
+      </section>
+
+      <section class="seccion">
+        <h2>Productos existentes</h2>
+        <p id="mensaje-lista" role="status"></p>
+
+        {listError && <p class="error">No se pudo cargar la lista: {listError}</p>}
+        {!listError && products.length === 0 && <p>Todavía no hay productos cargados.</p>}
+
+        {!listError && products.map((product) => (
+          <article class="product-card" data-product-id={product.id}>
+            <div class="vista" data-role="vista">
+              <img src={product.fotoUrl} alt={product.producto} />
+              <div class="info">
+                <h3>{product.producto}</h3>
+                <p>${product.precio.toLocaleString("es-AR")} · {product.categoria}</p>
+                <p>Stock: {product.stock}</p>
+                <span class={`badge ${product.activo ? "badge-activo" : "badge-inactivo"}`}>
+                  {product.activo ? "Activo" : "Inactivo"}
+                </span>
+              </div>
+              <div class="acciones">
+                <button type="button" class="btn-editar">Editar</button>
+                <button
+                  type="button"
+                  class="btn-toggle-activo"
+                  data-activo={String(product.activo)}
+                >
+                  {product.activo ? "Desactivar" : "Activar"}
+                </button>
+              </div>
+            </div>
+
+            <form class="edit-form" data-role="edit-form" hidden>
+              <div class="campo">
+                <label>Producto</label>
+                <input type="text" name="producto" value={product.producto} required />
+              </div>
+              <div class="campo">
+                <label>Precio</label>
+                <input type="number" name="precio" min="0" step="1" value={product.precio} required />
+              </div>
+              <div class="campo">
+                <label>Categoría</label>
+                <select name="categoria" required>
+                  {CATEGORIES.map((cat) => (
+                    <option value={cat} selected={cat === product.categoria}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div class="campo">
+                <label>Stock</label>
+                <input type="number" name="stock" min="0" step="1" value={product.stock} required />
+              </div>
+              <div class="acciones">
+                <button type="submit">Guardar</button>
+                <button type="button" class="btn-cancelar">Cancelar</button>
+              </div>
+            </form>
+          </article>
+        ))}
+      </section>
     </main>
 
     <style>
@@ -72,6 +153,13 @@ const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-pr
       main {
         padding: 1rem;
         max-width: 480px;
+        margin: 0 auto;
+      }
+      .seccion {
+        margin-bottom: 2rem;
+      }
+      .seccion h2 {
+        font-size: 1.1rem;
       }
       form {
         display: flex;
@@ -87,6 +175,7 @@ const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-pr
         font-weight: 600;
       }
       input,
+      select,
       button {
         font-size: 1rem;
         padding: 0.6rem;
@@ -110,14 +199,86 @@ const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-pr
       #btn-publicar:disabled {
         opacity: 0.6;
       }
-      #mensaje {
+      #mensaje,
+      #mensaje-lista {
         min-height: 1.2rem;
       }
-      #mensaje.error {
+      #mensaje.error,
+      #mensaje-lista.error {
         color: #a11f1f;
       }
-      #mensaje.ok {
+      #mensaje.ok,
+      #mensaje-lista.ok {
         color: #1a7a3c;
+      }
+      .error {
+        color: #a11f1f;
+      }
+
+      .product-card {
+        background: #fff;
+        border: 1px solid #e2e2e2;
+        border-radius: 12px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+      .vista {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .vista img {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: #f2f2f2;
+        flex-shrink: 0;
+      }
+      .info {
+        flex: 1;
+        min-width: 140px;
+      }
+      .info h3 {
+        margin: 0 0 0.15rem;
+        font-size: 1rem;
+      }
+      .info p {
+        margin: 0.1rem 0;
+        font-size: 0.9rem;
+        color: #555;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .badge-activo {
+        background: #dcf5e3;
+        color: #1a7a3c;
+      }
+      .badge-inactivo {
+        background: #eee;
+        color: #666;
+      }
+      .acciones {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+        margin-top: 0.5rem;
+      }
+      .acciones button {
+        flex: 1;
+        padding: 0.5rem;
+      }
+      .edit-form {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #eee;
       }
     </style>
 
@@ -191,6 +352,77 @@ const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-pr
         } finally {
           btnPublicar.disabled = false;
         }
+      });
+
+      const mensajeLista = document.getElementById("mensaje-lista");
+
+      function mostrarErrorLista(texto) {
+        mensajeLista.textContent = texto;
+        mensajeLista.className = "error";
+      }
+
+      document.querySelectorAll(".product-card").forEach((card) => {
+        const id = card.dataset.productId;
+        const editForm = card.querySelector('[data-role="edit-form"]');
+
+        card.querySelector(".btn-editar").addEventListener("click", () => {
+          editForm.hidden = !editForm.hidden;
+        });
+
+        card.querySelector(".btn-cancelar").addEventListener("click", () => {
+          editForm.hidden = true;
+        });
+
+        card.querySelector(".btn-toggle-activo").addEventListener("click", async (e) => {
+          const btn = e.currentTarget;
+          const activoActual = btn.dataset.activo === "true";
+          btn.disabled = true;
+          try {
+            const res = await fetch(`/api/products/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ activo: !activoActual }),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(data.error || `Error HTTP ${res.status}`);
+            }
+            location.reload();
+          } catch (err) {
+            mostrarErrorLista("No se pudo actualizar el estado: " + err.message);
+            btn.disabled = false;
+          }
+        });
+
+        editForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const formData = new FormData(editForm);
+          const payload = {
+            producto: formData.get("producto"),
+            precio: Number(formData.get("precio")),
+            categoria: formData.get("categoria"),
+            stock: Number(formData.get("stock")),
+          };
+
+          const btnGuardar = editForm.querySelector('button[type="submit"]');
+          btnGuardar.disabled = true;
+
+          try {
+            const res = await fetch(`/api/products/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(data.error || `Error HTTP ${res.status}`);
+            }
+            location.reload();
+          } catch (err) {
+            mostrarErrorLista("No se pudo guardar el producto: " + err.message);
+            btnGuardar.disabled = false;
+          }
+        });
       });
     </script>
   </body>
