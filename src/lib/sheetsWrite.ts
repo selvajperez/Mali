@@ -33,22 +33,57 @@ function normalizePrivateKey(raw: string): string {
   return key;
 }
 
-function getSheetsClient() {
-  const email = import.meta.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const rawPrivateKey = import.meta.env.GOOGLE_PRIVATE_KEY;
-  const sheetId = import.meta.env.GOOGLE_SHEET_ID;
+interface ServiceAccountCredentials {
+  email: string;
+  privateKey: string;
+}
 
-  if (!email || !rawPrivateKey || !sheetId) {
+function getCredentialsFromJsonB64(): ServiceAccountCredentials | null {
+  const jsonB64 = import.meta.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64;
+  if (!jsonB64) return null;
+
+  let parsed: { client_email?: string; private_key?: string };
+  try {
+    const decoded = Buffer.from(jsonB64.trim(), "base64").toString("utf8");
+    parsed = JSON.parse(decoded);
+  } catch {
     throw new Error(
-      "Faltan variables de entorno de Google (GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_SHEET_ID)"
+      "GOOGLE_SERVICE_ACCOUNT_JSON_B64 no se pudo decodificar. Verificá que sea el archivo .json de la Service Account codificado en base64, sin cortar."
     );
   }
 
-  const privateKey = normalizePrivateKey(rawPrivateKey);
+  if (!parsed.client_email || !parsed.private_key) {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON_B64 decodificó pero no tiene client_email/private_key.");
+  }
+
+  return { email: parsed.client_email, privateKey: parsed.private_key };
+}
+
+function getCredentialsFromSeparateVars(): ServiceAccountCredentials | null {
+  const email = import.meta.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const rawPrivateKey = import.meta.env.GOOGLE_PRIVATE_KEY;
+  if (!email || !rawPrivateKey) return null;
+
+  return { email, privateKey: normalizePrivateKey(rawPrivateKey) };
+}
+
+function getSheetsClient() {
+  const sheetId = import.meta.env.GOOGLE_SHEET_ID;
+  if (!sheetId) {
+    throw new Error("Falta la variable de entorno GOOGLE_SHEET_ID");
+  }
+
+  const credentials = getCredentialsFromJsonB64() ?? getCredentialsFromSeparateVars();
+  if (!credentials) {
+    throw new Error(
+      "Faltan credenciales de Google: definí GOOGLE_SERVICE_ACCOUNT_JSON_B64 (recomendado) o " +
+        "GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY"
+    );
+  }
 
   const auth = new google.auth.JWT({
-    email,
-    key: privateKey,
+    email: credentials.email,
+    key: credentials.privateKey,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 

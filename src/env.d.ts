@@ -3,6 +3,7 @@
 
 interface ImportMetaEnv {
   readonly SHEETS_CSV_URL: string;
+  readonly GOOGLE_SERVICE_ACCOUNT_JSON_B64: string;
   readonly GOOGLE_SERVICE_ACCOUNT_EMAIL: string;
   readonly GOOGLE_PRIVATE_KEY: string;
   readonly GOOGLE_SHEET_ID: string;
