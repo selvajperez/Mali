@@ -332,10 +332,23 @@ try {
           multiple: false,
         },
         (error, result) => {
-          if (!error && result && result.event === "success") {
+          if (error) {
+            console.error("Cloudinary Upload Widget error:", error);
+            const detalle =
+              typeof error === "string"
+                ? error
+                : error?.statusText || error?.message || JSON.stringify(error);
+            mensaje.textContent = "No se pudo subir la foto: " + detalle;
+            mensaje.className = "error";
+            return;
+          }
+
+          if (result && result.event === "success") {
             fotoUrlInput.value = result.info.secure_url;
             preview.src = result.info.secure_url;
             preview.hidden = false;
+            mensaje.textContent = "";
+            mensaje.className = "";
           }
         }
       );
