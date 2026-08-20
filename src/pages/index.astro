@@ -1,5 +1,6 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
+import CartDrawer from "../components/CartDrawer.astro";
 import { getCatalogProducts } from "../lib/sheets";
 import { CATEGORIES } from "../lib/categories";
 import { STORE_NAME, BRAND_COLOR, BRAND_COLOR_DARK } from "../lib/storeConfig";
@@ -29,9 +30,9 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
     <header class="header">
       <div class="header-top">
         <span class="logo">{STORE_NAME}</span>
-        <button type="button" class="btn-carrito" aria-label="Ver carrito">
+        <button type="button" id="btn-carrito" class="btn-carrito" aria-label="Ver carrito">
           🛒
-          <span class="badge-carrito">0</span>
+          <span id="cart-badge" class="badge-carrito">0</span>
         </button>
       </div>
       <input
@@ -42,6 +43,8 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         aria-label="Buscar productos"
       />
     </header>
+
+    <CartDrawer />
 
     {!error && categoriasPresentes.length > 0 && (
       <nav class="categorias" aria-label="Filtrar por categoría">
@@ -200,6 +203,16 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
     </style>
 
     <script>
+      import {
+        buildWhatsAppMessage,
+        buildWhatsAppUrl,
+        calcularTotal,
+        contarUnidades,
+        formatMoney,
+        type CartItem,
+      } from "../lib/cart";
+      import { WHATSAPP_PHONE } from "../lib/storeConfig";
+
       const buscador = document.getElementById("buscador") as HTMLInputElement | null;
       const chips = document.querySelectorAll<HTMLButtonElement>(".chip");
       const cards = document.querySelectorAll<HTMLElement>("#grid-productos .card");
@@ -233,6 +246,140 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
           aplicarFiltros();
         });
       });
+
+      // --- Carrito ---
+      const CART_KEY = "mute_carrito";
+
+      function cargarCarrito(): CartItem[] {
+        try {
+          const guardado = localStorage.getItem(CART_KEY);
+          if (!guardado) return [];
+          const datos = JSON.parse(guardado);
+          return Array.isArray(datos) ? datos : [];
+        } catch {
+          return [];
+        }
+      }
+
+      let carrito: CartItem[] = cargarCarrito();
+
+      function guardarCarrito() {
+        localStorage.setItem(CART_KEY, JSON.stringify(carrito));
+      }
+
+      const btnCarrito = document.getElementById("btn-carrito");
+      const cartBadge = document.getElementById("cart-badge");
+      const cartOverlay = document.getElementById("cart-overlay");
+      const cartDrawer = document.getElementById("cart-drawer");
+      const cartCerrar = document.getElementById("cart-cerrar");
+      const cartItemsEl = document.getElementById("cart-items");
+      const cartVacioEl = document.getElementById("cart-vacio");
+      const cartTotalMonto = document.getElementById("cart-total-monto");
+      const cartWhatsapp = document.getElementById("cart-whatsapp") as HTMLButtonElement | null;
+
+      function renderCarrito() {
+        cartBadge && (cartBadge.textContent = String(contarUnidades(carrito)));
+
+        if (cartItemsEl) {
+          cartItemsEl.innerHTML = carrito
+            .map(
+              (item) => `
+                <li class="cart-item" data-id="${item.id}">
+                  <img src="${item.fotoUrl}" alt="${item.nombre}" />
+                  <div class="cart-item-info">
+                    <p class="cart-item-nombre">${item.nombre}</p>
+                    <p class="cart-item-precio">${formatMoney(item.precio)} c/u</p>
+                    <div class="cart-item-cantidad">
+                      <button type="button" class="btn-qty" data-accion="restar" aria-label="Restar unidad">−</button>
+                      <span>${item.cantidad}</span>
+                      <button type="button" class="btn-qty" data-accion="sumar" aria-label="Sumar unidad">+</button>
+                      <button type="button" class="btn-eliminar" data-accion="eliminar" aria-label="Eliminar producto">Eliminar</button>
+                    </div>
+                  </div>
+                  <p class="cart-item-subtotal">${formatMoney(item.precio * item.cantidad)}</p>
+                </li>
+              `
+            )
+            .join("");
+        }
+
+        if (cartVacioEl) cartVacioEl.hidden = carrito.length > 0;
+        if (cartTotalMonto) cartTotalMonto.textContent = formatMoney(calcularTotal(carrito));
+        if (cartWhatsapp) cartWhatsapp.disabled = carrito.length === 0;
+      }
+
+      function agregarAlCarrito(id: string, nombre: string, precio: number, fotoUrl: string) {
+        const existente = carrito.find((item) => item.id === id);
+        if (existente) {
+          existente.cantidad += 1;
+        } else {
+          carrito.push({ id, nombre, precio, fotoUrl, cantidad: 1 });
+        }
+        guardarCarrito();
+        renderCarrito();
+      }
+
+      function cambiarCantidad(id: string, delta: number) {
+        const item = carrito.find((i) => i.id === id);
+        if (!item) return;
+        item.cantidad += delta;
+        if (item.cantidad <= 0) {
+          carrito = carrito.filter((i) => i.id !== id);
+        }
+        guardarCarrito();
+        renderCarrito();
+      }
+
+      function eliminarDelCarrito(id: string) {
+        carrito = carrito.filter((i) => i.id !== id);
+        guardarCarrito();
+        renderCarrito();
+      }
+
+      function abrirCarrito() {
+        cartOverlay?.removeAttribute("hidden");
+        cartDrawer?.classList.add("abierto");
+        cartDrawer?.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function cerrarCarrito() {
+        cartOverlay?.setAttribute("hidden", "");
+        cartDrawer?.classList.remove("abierto");
+        cartDrawer?.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+      }
+
+      btnCarrito?.addEventListener("click", abrirCarrito);
+      cartCerrar?.addEventListener("click", cerrarCarrito);
+      cartOverlay?.addEventListener("click", cerrarCarrito);
+
+      document.querySelectorAll<HTMLButtonElement>(".btn-agregar").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const { id, nombre, precio, foto } = btn.dataset;
+          if (!id || !nombre || !precio || !foto) return;
+          agregarAlCarrito(id, nombre, Number(precio), foto);
+        });
+      });
+
+      cartItemsEl?.addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-accion]");
+        if (!btn) return;
+        const id = btn.closest<HTMLElement>(".cart-item")?.dataset.id;
+        if (!id) return;
+
+        if (btn.dataset.accion === "sumar") cambiarCantidad(id, 1);
+        if (btn.dataset.accion === "restar") cambiarCantidad(id, -1);
+        if (btn.dataset.accion === "eliminar") eliminarDelCarrito(id);
+      });
+
+      cartWhatsapp?.addEventListener("click", () => {
+        if (carrito.length === 0) return;
+        const mensaje = buildWhatsAppMessage(carrito);
+        window.open(buildWhatsAppUrl(WHATSAPP_PHONE, mensaje), "_blank", "noopener");
+      });
+
+      renderCarrito();
     </script>
   </body>
 </html>

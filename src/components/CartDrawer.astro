@@ -1,0 +1,166 @@
+---
+---
+
+<div id="cart-overlay" class="cart-overlay" hidden></div>
+
+<aside id="cart-drawer" class="cart-drawer" aria-hidden="true">
+  <div class="cart-header">
+    <h2>Tu carrito</h2>
+    <button type="button" id="cart-cerrar" aria-label="Cerrar carrito">✕</button>
+  </div>
+
+  <ul id="cart-items" class="cart-items"></ul>
+  <p id="cart-vacio" class="cart-vacio">Tu carrito está vacío.</p>
+
+  <div class="cart-footer">
+    <div class="cart-total">
+      <span>Total</span>
+      <span id="cart-total-monto">$0</span>
+    </div>
+    <button type="button" id="cart-whatsapp" class="btn-whatsapp" disabled>
+      Pedir por WhatsApp
+    </button>
+  </div>
+</aside>
+
+<style is:global>
+  .cart-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 20;
+  }
+  .cart-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 100%);
+    background: #fff;
+    z-index: 21;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+  }
+  .cart-drawer.abierto {
+    transform: translateX(0);
+  }
+  .cart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+  .cart-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+  #cart-cerrar {
+    border: none;
+    background: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.25rem 0.5rem;
+  }
+  .cart-items {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .cart-vacio {
+    text-align: center;
+    color: #666;
+    padding: 1rem;
+  }
+  .cart-item {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .cart-item img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f2f2f2;
+    flex-shrink: 0;
+  }
+  .cart-item-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .cart-item-nombre {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .cart-item-precio {
+    margin: 0.1rem 0;
+    font-size: 0.8rem;
+    color: #666;
+  }
+  .cart-item-cantidad {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+  }
+  .btn-qty {
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 6px;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+  }
+  .btn-eliminar {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: #a11f1f;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.3rem;
+  }
+  .cart-item-subtotal {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  .cart-footer {
+    border-top: 1px solid #eee;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .cart-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  .btn-whatsapp {
+    border: none;
+    background: #25d366;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.85rem;
+    border-radius: 10px;
+  }
+  .btn-whatsapp:disabled {
+    opacity: 0.5;
+  }
+</style>

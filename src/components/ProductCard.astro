@@ -31,7 +31,15 @@ const puedeAgregar = product.estado !== "Agotado";
     <div class="fila-inferior">
       <p class="precio">${product.precio.toLocaleString("es-AR")}</p>
       {puedeAgregar && (
-        <button type="button" class="btn-agregar" aria-label={`Agregar ${product.producto}`}>
+        <button
+          type="button"
+          class="btn-agregar"
+          aria-label={`Agregar ${product.producto}`}
+          data-id={product.id}
+          data-nombre={product.producto}
+          data-precio={product.precio}
+          data-foto={product.fotoUrl}
+        >
           Agregar
         </button>
       )}
