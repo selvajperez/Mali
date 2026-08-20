@@ -8,9 +8,12 @@
     "build": "astro build",
     "preview": "astro preview"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
-    "@astrojs/vercel": "^7.8.0",
-    "astro": "^4.16.0",
+    "@astrojs/vercel": "^8.2.11",
+    "astro": "^5.18.2",
     "googleapis": "^144.0.0"
   },
   "devDependencies": {
