@@ -30,9 +30,9 @@ try {
 
     <main>
       <section class="seccion">
-        <h2>Publicar producto nuevo</h2>
+        <h2 id="form-titulo">Publicar producto nuevo</h2>
         <form id="form-producto">
-          <div class="campo">
+          <div class="campo" id="campo-foto">
             <label>Foto</label>
             <button type="button" id="btn-foto">Elegir foto</button>
             <img id="preview" alt="" hidden />
@@ -63,6 +63,7 @@ try {
           </div>
 
           <button type="submit" id="btn-publicar">Publicar</button>
+          <button type="button" id="btn-cancelar-edicion" hidden>Cancelar edición</button>
           <p id="mensaje" role="status"></p>
         </form>
       </section>
@@ -87,7 +88,18 @@ try {
                 </span>
               </div>
               <div class="acciones">
-                <button type="button" class="btn-editar">Editar</button>
+                <button
+                  type="button"
+                  class="btn-editar"
+                  data-id={product.id}
+                  data-producto={product.producto}
+                  data-precio={product.precio}
+                  data-categoria={product.categoria}
+                  data-stock={product.stock}
+                  data-foto={product.fotoUrl}
+                >
+                  Editar
+                </button>
                 <button
                   type="button"
                   class="btn-toggle-activo"
@@ -97,35 +109,6 @@ try {
                 </button>
               </div>
             </div>
-
-            <form class="edit-form" data-role="edit-form" hidden>
-              <div class="campo">
-                <label>Producto</label>
-                <input type="text" name="producto" value={product.producto} required />
-              </div>
-              <div class="campo">
-                <label>Precio</label>
-                <input type="number" name="precio" min="0" step="1" value={product.precio} required />
-              </div>
-              <div class="campo">
-                <label>Categoría</label>
-                <select name="categoria" required>
-                  {CATEGORIES.map((cat) => (
-                    <option value={cat} selected={cat === product.categoria}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div class="campo">
-                <label>Stock</label>
-                <input type="number" name="stock" min="0" step="1" value={product.stock} required />
-              </div>
-              <div class="acciones">
-                <button type="submit">Guardar</button>
-                <button type="button" class="btn-cancelar">Cancelar</button>
-              </div>
-            </form>
           </article>
         ))}
       </section>
@@ -170,6 +153,9 @@ try {
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
+      }
+      .campo[hidden] {
+        display: none;
       }
       label {
         font-weight: 600;
@@ -275,10 +261,19 @@ try {
         flex: 1;
         padding: 0.5rem;
       }
-      .edit-form {
-        margin-top: 0.75rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid #eee;
+      #form-producto {
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+      }
+      #form-producto.modo-edicion {
+        border-color: #f0b429;
+        background: #fffbea;
+        box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.15);
+      }
+      #btn-cancelar-edicion {
+        background: #fff;
       }
     </style>
 
@@ -288,6 +283,46 @@ try {
       const mensaje = document.getElementById("mensaje");
       const form = document.getElementById("form-producto");
       const btnPublicar = document.getElementById("btn-publicar");
+      const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
+      const formTitulo = document.getElementById("form-titulo");
+      const campoFoto = document.getElementById("campo-foto");
+      const campoProducto = document.getElementById("producto");
+      const campoPrecio = document.getElementById("precio");
+      const campoCategoria = document.getElementById("categoria");
+      const campoStock = document.getElementById("stock");
+
+      let editingId = null;
+
+      function entrarModoEdicion(datos) {
+        editingId = datos.id;
+        formTitulo.textContent = `Editando: ${datos.producto}`;
+        form.classList.add("modo-edicion");
+        btnPublicar.textContent = "Guardar cambios";
+        btnCancelarEdicion.hidden = false;
+        campoFoto.hidden = true;
+        fotoUrlInput.value = datos.foto;
+        campoProducto.value = datos.producto;
+        campoPrecio.value = datos.precio;
+        campoCategoria.value = datos.categoria;
+        campoStock.value = datos.stock;
+        mensaje.textContent = "";
+        mensaje.className = "";
+        form.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function salirModoEdicion() {
+        editingId = null;
+        formTitulo.textContent = "Publicar producto nuevo";
+        form.classList.remove("modo-edicion");
+        btnPublicar.textContent = "Publicar";
+        btnCancelarEdicion.hidden = true;
+        campoFoto.hidden = false;
+        form.reset();
+        fotoUrlInput.value = "";
+        preview.hidden = true;
+      }
+
+      btnCancelarEdicion.addEventListener("click", salirModoEdicion);
 
       const widget = cloudinary.createUploadWidget(
         {
@@ -312,26 +347,35 @@ try {
         mensaje.textContent = "";
         mensaje.className = "";
 
-        if (!fotoUrlInput.value) {
+        const editando = editingId !== null;
+
+        if (!editando && !fotoUrlInput.value) {
           mensaje.textContent = "Elegí una foto antes de publicar.";
           mensaje.className = "error";
           return;
         }
 
-        const payload = {
-          fotoUrl: fotoUrlInput.value,
-          producto: document.getElementById("producto").value,
-          precio: Number(document.getElementById("precio").value),
-          categoria: document.getElementById("categoria").value,
-          stock: Number(document.getElementById("stock").value),
-        };
+        const payload = editando
+          ? {
+              producto: campoProducto.value,
+              precio: Number(campoPrecio.value),
+              categoria: campoCategoria.value,
+              stock: Number(campoStock.value),
+            }
+          : {
+              fotoUrl: fotoUrlInput.value,
+              producto: campoProducto.value,
+              precio: Number(campoPrecio.value),
+              categoria: campoCategoria.value,
+              stock: Number(campoStock.value),
+            };
 
         btnPublicar.disabled = true;
-        mensaje.textContent = "Publicando...";
+        mensaje.textContent = editando ? "Guardando cambios..." : "Publicando...";
 
         try {
-          const res = await fetch("/api/products", {
-            method: "POST",
+          const res = await fetch(editando ? `/api/products/${editingId}` : "/api/products", {
+            method: editando ? "PATCH" : "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
@@ -341,13 +385,18 @@ try {
             throw new Error(data.error || `Error HTTP ${res.status}`);
           }
 
+          if (editando) {
+            location.reload();
+            return;
+          }
+
           mensaje.textContent = "Producto publicado.";
           mensaje.className = "ok";
           form.reset();
           preview.hidden = true;
           fotoUrlInput.value = "";
         } catch (err) {
-          mensaje.textContent = "No se pudo publicar: " + err.message;
+          mensaje.textContent = (editando ? "No se pudo guardar: " : "No se pudo publicar: ") + err.message;
           mensaje.className = "error";
         } finally {
           btnPublicar.disabled = false;
@@ -363,14 +412,17 @@ try {
 
       document.querySelectorAll(".product-card").forEach((card) => {
         const id = card.dataset.productId;
-        const editForm = card.querySelector('[data-role="edit-form"]');
 
-        card.querySelector(".btn-editar").addEventListener("click", () => {
-          editForm.hidden = !editForm.hidden;
-        });
-
-        card.querySelector(".btn-cancelar").addEventListener("click", () => {
-          editForm.hidden = true;
+        card.querySelector(".btn-editar").addEventListener("click", (e) => {
+          const btn = e.currentTarget;
+          entrarModoEdicion({
+            id: btn.dataset.id,
+            producto: btn.dataset.producto,
+            precio: btn.dataset.precio,
+            categoria: btn.dataset.categoria,
+            stock: btn.dataset.stock,
+            foto: btn.dataset.foto,
+          });
         });
 
         card.querySelector(".btn-toggle-activo").addEventListener("click", async (e) => {
@@ -391,36 +443,6 @@ try {
           } catch (err) {
             mostrarErrorLista("No se pudo actualizar el estado: " + err.message);
             btn.disabled = false;
-          }
-        });
-
-        editForm.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const formData = new FormData(editForm);
-          const payload = {
-            producto: formData.get("producto"),
-            precio: Number(formData.get("precio")),
-            categoria: formData.get("categoria"),
-            stock: Number(formData.get("stock")),
-          };
-
-          const btnGuardar = editForm.querySelector('button[type="submit"]');
-          btnGuardar.disabled = true;
-
-          try {
-            const res = await fetch(`/api/products/${id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-              const data = await res.json().catch(() => ({}));
-              throw new Error(data.error || `Error HTTP ${res.status}`);
-            }
-            location.reload();
-          } catch (err) {
-            mostrarErrorLista("No se pudo guardar el producto: " + err.message);
-            btnGuardar.disabled = false;
           }
         });
       });

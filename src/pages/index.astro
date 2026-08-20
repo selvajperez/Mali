@@ -276,9 +276,11 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
       const cartVacioEl = document.getElementById("cart-vacio");
       const cartTotalMonto = document.getElementById("cart-total-monto");
       const cartWhatsapp = document.getElementById("cart-whatsapp") as HTMLButtonElement | null;
+      const cartVaciar = document.getElementById("cart-vaciar") as HTMLButtonElement | null;
 
       function renderCarrito() {
         cartBadge && (cartBadge.textContent = String(contarUnidades(carrito)));
+        if (cartVaciar) cartVaciar.hidden = carrito.length === 0;
 
         if (cartItemsEl) {
           cartItemsEl.innerHTML = carrito
@@ -377,6 +379,14 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         if (carrito.length === 0) return;
         const mensaje = buildWhatsAppMessage(carrito);
         window.open(buildWhatsAppUrl(WHATSAPP_PHONE, mensaje), "_blank", "noopener");
+      });
+
+      cartVaciar?.addEventListener("click", () => {
+        if (carrito.length === 0) return;
+        if (!confirm("¿Vaciar el carrito? Se van a quitar todos los productos.")) return;
+        carrito = [];
+        guardarCarrito();
+        renderCarrito();
       });
 
       renderCarrito();
