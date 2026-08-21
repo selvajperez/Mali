@@ -48,6 +48,17 @@ try {
               </div>
             </div>
 
+            <div id="ajuste-contenedor" hidden>
+              <div class="crop-caja">
+                <canvas id="crop-canvas" width="1024" height="1280"></canvas>
+              </div>
+              <input type="range" id="zoom-slider" min="0" max="100" value="0" aria-label="Zoom" />
+              <div class="camara-botones">
+                <button type="button" id="btn-confirmar-ajuste">Confirmar</button>
+                <button type="button" id="btn-cancelar-ajuste">Cancelar</button>
+              </div>
+            </div>
+
             <p id="foto-mensaje" role="status"></p>
             <img id="preview" alt="" hidden />
             <input type="hidden" id="fotoUrl" name="fotoUrl" required />
@@ -207,6 +218,32 @@ try {
       }
       .camara-botones button {
         flex: 1;
+      }
+      #ajuste-contenedor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .crop-caja {
+        width: min(280px, 80vw);
+        aspect-ratio: 4 / 5;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #222;
+        touch-action: none;
+        margin: 0 auto;
+      }
+      #crop-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+      #zoom-slider {
+        width: min(280px, 80vw);
+        margin: 0 auto;
+        padding: 0;
+        border: none;
       }
       #foto-mensaje {
         min-height: 1.2rem;
@@ -374,37 +411,136 @@ try {
 
       btnCancelarEdicion.addEventListener("click", salirModoEdicion);
 
-      // --- Foto: mismo mecanismo validado en /test-camera (getUserMedia +
-      // canvas, o galeria + resize), sin depender del Cloudinary Upload
-      // Widget, que fallaba con "Memoria insuficiente" al sacar fotos desde
-      // la camara nativa de Android en equipos de gama media. ---
-      function dibujarEnCanvas(source, srcWidth, srcHeight, maxWidth, maxHeight, calidad) {
-        const escala = Math.min(1, maxWidth / srcWidth, maxHeight / srcHeight);
-        const width = Math.round(srcWidth * escala);
-        const height = Math.round(srcHeight * escala);
+      // --- Foto: mismo mecanismo validado en /test-camera (getUserMedia,
+      // sin depender del Cloudinary Upload Widget, que fallaba con "Memoria
+      // insuficiente" al sacar fotos desde la camara nativa de Android en
+      // equipos de gama media), mas un paso de ajuste (recorte 4:5, mover y
+      // zoom) antes de redimensionar y subir. ---
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(source, 0, 0, width, height);
+      // Tamaño final fijo (tambien es la resolucion interna del canvas de
+      // ajuste, asi "Confirmar" ya genera el JPEG final sin un segundo
+      // resize). Formato 4:5. Se deja como constante para poder generar mas
+      // adelante otros formatos (ej. cuadrado para redes) sin tocar la
+      // lógica de recorte/zoom, solo estos dos numeros.
+      const CROP_WIDTH = 1024;
+      const CROP_HEIGHT = 1280;
+      const ZOOM_MAX_MULTIPLIER = 3;
 
-        return new Promise((resolve, reject) => {
-          canvas.toBlob(
-            (blob) => (blob ? resolve({ blob, width, height }) : reject(new Error("No se pudo generar el JPEG"))),
-            "image/jpeg",
-            calidad
-          );
-        });
+      const ajusteContenedor = document.getElementById("ajuste-contenedor");
+      const cropCanvas = document.getElementById("crop-canvas");
+      const cropCtx = cropCanvas.getContext("2d");
+      const zoomSlider = document.getElementById("zoom-slider");
+      const btnConfirmarAjuste = document.getElementById("btn-confirmar-ajuste");
+      const btnCancelarAjuste = document.getElementById("btn-cancelar-ajuste");
+
+      let cropBitmap = null;
+      let cropNaturalWidth = 0;
+      let cropNaturalHeight = 0;
+      let cropMinScale = 1;
+      let cropScale = 1;
+      let cropCenterX = 0;
+      let cropCenterY = 0;
+      let cropDragging = false;
+      let cropDragStartX = 0;
+      let cropDragStartY = 0;
+      let cropDragStartCenterX = 0;
+      let cropDragStartCenterY = 0;
+
+      function clampCropCenter() {
+        const sWidth = CROP_WIDTH / cropScale;
+        const sHeight = CROP_HEIGHT / cropScale;
+        cropCenterX = Math.min(Math.max(cropCenterX, sWidth / 2), cropNaturalWidth - sWidth / 2);
+        cropCenterY = Math.min(Math.max(cropCenterY, sHeight / 2), cropNaturalHeight - sHeight / 2);
       }
 
-      async function archivoAResizedBlob(file, maxWidth, maxHeight, calidad) {
-        const bitmap = await createImageBitmap(file);
+      function dibujarCrop() {
+        const sWidth = CROP_WIDTH / cropScale;
+        const sHeight = CROP_HEIGHT / cropScale;
+        const sx = cropCenterX - sWidth / 2;
+        const sy = cropCenterY - sHeight / 2;
+        cropCtx.clearRect(0, 0, CROP_WIDTH, CROP_HEIGHT);
+        cropCtx.drawImage(cropBitmap, sx, sy, sWidth, sHeight, 0, 0, CROP_WIDTH, CROP_HEIGHT);
+      }
+
+      function abrirAjuste(bitmap) {
+        cropBitmap = bitmap;
+        cropNaturalWidth = bitmap.width;
+        cropNaturalHeight = bitmap.height;
+        cropMinScale = Math.max(CROP_WIDTH / cropNaturalWidth, CROP_HEIGHT / cropNaturalHeight);
+        cropScale = cropMinScale;
+        cropCenterX = cropNaturalWidth / 2;
+        cropCenterY = cropNaturalHeight / 2;
+        zoomSlider.value = "0";
+        ajusteContenedor.hidden = false;
+        btnSacarFoto.disabled = true;
+        btnElegirGaleria.disabled = true;
+        fotoMensaje.textContent = "";
+        fotoMensaje.className = "";
+        dibujarCrop();
+      }
+
+      function cerrarAjuste() {
+        cropBitmap?.close();
+        cropBitmap = null;
+        ajusteContenedor.hidden = true;
+        btnSacarFoto.disabled = false;
+        btnElegirGaleria.disabled = false;
+      }
+
+      zoomSlider.addEventListener("input", () => {
+        const t = Number(zoomSlider.value) / 100;
+        cropScale = cropMinScale * (1 + (ZOOM_MAX_MULTIPLIER - 1) * t);
+        clampCropCenter();
+        dibujarCrop();
+      });
+
+      cropCanvas.addEventListener("pointerdown", (e) => {
+        cropDragging = true;
+        cropCanvas.setPointerCapture(e.pointerId);
+        cropDragStartX = e.clientX;
+        cropDragStartY = e.clientY;
+        cropDragStartCenterX = cropCenterX;
+        cropDragStartCenterY = cropCenterY;
+      });
+
+      cropCanvas.addEventListener("pointermove", (e) => {
+        if (!cropDragging) return;
+        const rect = cropCanvas.getBoundingClientRect();
+        const factor = CROP_WIDTH / rect.width / cropScale; // px en pantalla -> px de la imagen fuente
+        cropCenterX = cropDragStartCenterX - (e.clientX - cropDragStartX) * factor;
+        cropCenterY = cropDragStartCenterY - (e.clientY - cropDragStartY) * factor;
+        clampCropCenter();
+        dibujarCrop();
+      });
+
+      function terminarDragCrop() {
+        cropDragging = false;
+      }
+      cropCanvas.addEventListener("pointerup", terminarDragCrop);
+      cropCanvas.addEventListener("pointercancel", terminarDragCrop);
+
+      btnCancelarAjuste.addEventListener("click", cerrarAjuste);
+
+      btnConfirmarAjuste.addEventListener("click", async () => {
+        fotoMensaje.textContent = "Subiendo foto...";
+        fotoMensaje.className = "";
+
         try {
-          return await dibujarEnCanvas(bitmap, bitmap.width, bitmap.height, maxWidth, maxHeight, calidad);
-        } finally {
-          bitmap.close();
+          const blob = await new Promise((resolve, reject) => {
+            cropCanvas.toBlob(
+              (b) => (b ? resolve(b) : reject(new Error("No se pudo generar el JPEG"))),
+              "image/jpeg",
+              0.85
+            );
+          });
+          cerrarAjuste();
+          const info = await subirACloudinary(blob);
+          mostrarFotoOk(info);
+        } catch (err) {
+          cerrarAjuste();
+          mostrarFotoError(err);
         }
-      }
+      });
 
       async function subirACloudinary(blob) {
         const formData = new FormData();
@@ -495,15 +631,11 @@ try {
       });
 
       btnCapturar.addEventListener("click", async () => {
-        fotoMensaje.textContent = "Subiendo foto...";
-        fotoMensaje.className = "";
-
         try {
           await esperarVideoListo(video);
-          const { blob } = await dibujarEnCanvas(video, video.videoWidth, video.videoHeight, 1280, 960, 0.85);
-          cerrarCamara(); // ya tenemos el blob: apagamos la camara antes de subir
-          const info = await subirACloudinary(blob);
-          mostrarFotoOk(info);
+          const bitmap = await createImageBitmap(video);
+          cerrarCamara(); // ya tenemos el frame: apagamos la camara antes de ajustar/subir
+          abrirAjuste(bitmap);
         } catch (err) {
           cerrarCamara();
           mostrarFotoError(err);
@@ -511,7 +643,10 @@ try {
       });
 
       btnCancelarCamara.addEventListener("click", cerrarCamara);
-      window.addEventListener("pagehide", cerrarCamara);
+      window.addEventListener("pagehide", () => {
+        cerrarCamara();
+        cerrarAjuste();
+      });
 
       btnElegirGaleria.addEventListener("click", () => inputGaleria.click());
 
@@ -520,13 +655,9 @@ try {
         inputGaleria.value = "";
         if (!file) return;
 
-        fotoMensaje.textContent = "Subiendo foto...";
-        fotoMensaje.className = "";
-
         try {
-          const { blob } = await archivoAResizedBlob(file, 1280, 960, 0.85);
-          const info = await subirACloudinary(blob);
-          mostrarFotoOk(info);
+          const bitmap = await createImageBitmap(file);
+          abrirAjuste(bitmap);
         } catch (err) {
           mostrarFotoError(err);
         }
