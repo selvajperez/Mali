@@ -21,12 +21,17 @@ function urlMiniatura(fotoUrl: string, ancho: number, alto: number): string {
   return `${fotoUrl.slice(0, inicio)}c_fill,w_${ancho},h_${alto},q_auto,f_auto/${fotoUrl.slice(inicio)}`;
 }
 
-function cargarImagen(url: string): Promise<HTMLImageElement> {
+function cargarImagen(url: string, nombreProducto: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("No se pudo cargar una de las fotos del producto."));
+    img.onerror = () =>
+      reject(
+        new Error(
+          `No se pudo cargar la foto de "${nombreProducto}". Revisá la imagen o desmarcá ese producto e intentá nuevamente.`
+        )
+      );
     img.src = url;
   });
 }
@@ -129,7 +134,7 @@ async function generarPlacaUnica(producto: PublicationProduct, branding: Brandin
   ctx.fillStyle = "#111";
   ctx.fillRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
-  const img = await cargarImagen(producto.fotoUrl);
+  const img = await cargarImagen(producto.fotoUrl, producto.producto);
   dibujarCover(ctx, img, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
   const gradiente = ctx.createLinearGradient(0, OUTPUT_HEIGHT * 0.5, 0, OUTPUT_HEIGHT);
@@ -194,7 +199,10 @@ async function generarPlacaLista(productos: PublicationProduct[], branding: Bran
     }
 
     const fotoY = yFila + (altoFila - fotoLado) / 2;
-    const img = await cargarImagen(urlMiniatura(producto.fotoUrl, fotoLado * 2, fotoLado * 2));
+    const img = await cargarImagen(
+      urlMiniatura(producto.fotoUrl, fotoLado * 2, fotoLado * 2),
+      producto.producto
+    );
 
     ctx.save();
     ctx.beginPath();

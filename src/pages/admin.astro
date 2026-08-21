@@ -2,7 +2,6 @@
 import { CATEGORIES } from "../lib/categories";
 import { CURRENCIES, formatMoney } from "../lib/currencies";
 import { listAllProducts } from "../lib/sheetsWrite";
-import { getStockStatus } from "../lib/stockStatus";
 import PublicationModal from "../components/PublicationModal.astro";
 
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
@@ -112,17 +111,25 @@ try {
 
         {!listError && products.some((p) => p.activo) && (
           <div id="barra-publicacion" class="barra-publicacion">
-            <span id="contador-seleccion">0 seleccionados</span>
-            <button type="button" id="btn-preparar-publicacion" disabled>
-              Preparar publicación
-            </button>
+            <div class="barra-publicacion-fila">
+              <span id="contador-seleccion">0 seleccionados</span>
+              <button type="button" id="btn-preparar-publicacion" disabled>
+                Preparar publicación
+              </button>
+            </div>
+            <div class="barra-publicacion-fila">
+              <button type="button" id="btn-seleccionar-todos" class="btn-seleccion-masiva">
+                Seleccionar todos
+              </button>
+              <button type="button" id="btn-deseleccionar-todos" class="btn-seleccion-masiva">
+                Deseleccionar todos
+              </button>
+            </div>
           </div>
         )}
         <p id="mensaje-publicacion" role="status"></p>
 
-        {!listError && products.map((product) => {
-          const agotado = getStockStatus(product.stock) === "Agotado";
-          return (
+        {!listError && products.map((product) => (
             <article class="product-card" data-product-id={product.id}>
               <div class="vista" data-role="vista">
                 {product.activo && (
@@ -130,7 +137,6 @@ try {
                     type="checkbox"
                     class="chk-publicacion"
                     data-id={product.id}
-                    checked={!agotado}
                     aria-label={`Seleccionar ${product.producto} para publicación`}
                   />
                 )}
@@ -167,8 +173,7 @@ try {
                 </div>
               </div>
             </article>
-          );
-        })}
+          ))}
       </section>
     </main>
 
@@ -330,6 +335,11 @@ try {
         padding: 0.75rem;
         margin-bottom: 0.75rem;
         display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .barra-publicacion-fila {
+        display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
@@ -349,6 +359,13 @@ try {
       }
       #btn-preparar-publicacion:disabled {
         opacity: 0.5;
+      }
+      .btn-seleccion-masiva {
+        flex: 1;
+        background: #fff;
+        border: 1px solid #ccc;
+        font-size: 0.85rem;
+        padding: 0.5rem;
       }
       #mensaje-publicacion {
         min-height: 1.2rem;
@@ -904,6 +921,27 @@ try {
           }
           actualizarBarra();
         });
+      });
+
+      const btnSeleccionarTodos = document.getElementById("btn-seleccionar-todos") as HTMLButtonElement | null;
+      const btnDeseleccionarTodos = document.getElementById("btn-deseleccionar-todos") as HTMLButtonElement | null;
+
+      btnSeleccionarTodos?.addEventListener("click", () => {
+        const excede = checkboxes.length > MAX_PRODUCTOS_PUBLICACION;
+        checkboxes.forEach((chk, indice) => {
+          chk.checked = indice < MAX_PRODUCTOS_PUBLICACION;
+        });
+        if (excede) {
+          mostrarMensajePublicacion(`Podés preparar hasta ${MAX_PRODUCTOS_PUBLICACION} productos por publicación.`);
+        }
+        actualizarBarra();
+      });
+
+      btnDeseleccionarTodos?.addEventListener("click", () => {
+        checkboxes.forEach((chk) => {
+          chk.checked = false;
+        });
+        actualizarBarra();
       });
 
       actualizarBarra();
