@@ -29,18 +29,19 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       });
     }
 
-    const { producto, precio, categoria, stock } = data;
+    const { producto, precio, categoria, stock, fotoUrl } = data;
 
     if (
       typeof producto !== "string" || !producto.trim() ||
       !isValidCategory(categoria) ||
+      typeof fotoUrl !== "string" || !fotoUrl.trim() ||
       typeof precio !== "number" || !Number.isFinite(precio) || precio < 0 ||
       typeof stock !== "number" || !Number.isFinite(stock) || stock < 0
     ) {
       return jsonError("Datos del producto incompletos o inválidos", 400);
     }
 
-    await updateProductFields(id, { producto, precio, categoria, stock });
+    await updateProductFields(id, { producto, precio, categoria, stock, fotoUrl });
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

@@ -127,6 +127,7 @@ export interface ProductEdits {
   precio: number;
   categoria: string;
   stock: number;
+  fotoUrl: string;
 }
 
 export async function listAllProducts(): Promise<AdminProduct[]> {
@@ -183,10 +184,10 @@ export async function updateProductFields(id: string, edits: ProductEdits): Prom
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: sheetId,
-    range: `B${row}:E${row}`,
+    range: `B${row}:F${row}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
-      values: [[edits.producto, edits.precio, edits.categoria, edits.stock]],
+      values: [[edits.producto, edits.precio, edits.categoria, edits.stock, edits.fotoUrl]],
     },
   });
 }

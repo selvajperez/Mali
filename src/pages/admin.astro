@@ -21,7 +21,6 @@ try {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MUTE - Administración</title>
-    <script is:inline src="https://upload-widget.cloudinary.com/global/all.js"></script>
   </head>
   <body>
     <header>
@@ -34,7 +33,22 @@ try {
         <form id="form-producto">
           <div class="campo" id="campo-foto">
             <label>Foto</label>
-            <button type="button" id="btn-foto">Elegir foto</button>
+
+            <div class="foto-acciones">
+              <button type="button" id="btn-sacar-foto">Sacar foto</button>
+              <button type="button" id="btn-elegir-galeria">Elegir de galería</button>
+            </div>
+            <input type="file" id="input-galeria" accept="image/*" hidden />
+
+            <div id="camara-contenedor" hidden>
+              <video id="video-preview" playsinline autoplay muted></video>
+              <div class="camara-botones">
+                <button type="button" id="btn-capturar">Capturar</button>
+                <button type="button" id="btn-cancelar-camara">Cancelar</button>
+              </div>
+            </div>
+
+            <p id="foto-mensaje" role="status"></p>
             <img id="preview" alt="" hidden />
             <input type="hidden" id="fotoUrl" name="fotoUrl" required />
           </div>
@@ -168,8 +182,41 @@ try {
         border-radius: 8px;
         border: 1px solid #ccc;
       }
-      #btn-foto {
+      .foto-acciones {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .foto-acciones button {
+        flex: 1;
         background: #fff;
+      }
+      #camara-contenedor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      #video-preview {
+        width: 100%;
+        max-width: 320px;
+        border-radius: 8px;
+        background: #222;
+      }
+      .camara-botones {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .camara-botones button {
+        flex: 1;
+      }
+      #foto-mensaje {
+        min-height: 1.2rem;
+        margin: 0;
+      }
+      #foto-mensaje.error {
+        color: #a11f1f;
+      }
+      #foto-mensaje.ok {
+        color: #1a7a3c;
       }
       #preview {
         max-width: 160px;
@@ -285,7 +332,6 @@ try {
       const btnPublicar = document.getElementById("btn-publicar");
       const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
       const formTitulo = document.getElementById("form-titulo");
-      const campoFoto = document.getElementById("campo-foto");
       const campoProducto = document.getElementById("producto");
       const campoPrecio = document.getElementById("precio");
       const campoCategoria = document.getElementById("categoria");
@@ -299,14 +345,17 @@ try {
         form.classList.add("modo-edicion");
         btnPublicar.textContent = "Guardar cambios";
         btnCancelarEdicion.hidden = false;
-        campoFoto.hidden = true;
         fotoUrlInput.value = datos.foto;
+        preview.src = datos.foto;
+        preview.hidden = false;
         campoProducto.value = datos.producto;
         campoPrecio.value = datos.precio;
         campoCategoria.value = datos.categoria;
         campoStock.value = datos.stock;
         mensaje.textContent = "";
         mensaje.className = "";
+        fotoMensaje.textContent = "";
+        fotoMensaje.className = "";
         form.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
@@ -316,44 +365,172 @@ try {
         form.classList.remove("modo-edicion");
         btnPublicar.textContent = "Publicar";
         btnCancelarEdicion.hidden = true;
-        campoFoto.hidden = false;
         form.reset();
         fotoUrlInput.value = "";
         preview.hidden = true;
+        fotoMensaje.textContent = "";
+        fotoMensaje.className = "";
       }
 
       btnCancelarEdicion.addEventListener("click", salirModoEdicion);
 
-      const widget = cloudinary.createUploadWidget(
-        {
-          cloudName,
-          uploadPreset,
-          sources: ["camera", "local"],
-          multiple: false,
-        },
-        (error, result) => {
-          if (error) {
-            console.error("Cloudinary Upload Widget error:", error);
-            const detalle =
-              typeof error === "string"
-                ? error
-                : error?.statusText || error?.message || JSON.stringify(error);
-            mensaje.textContent = "No se pudo subir la foto: " + detalle;
-            mensaje.className = "error";
-            return;
-          }
+      // --- Foto: mismo mecanismo validado en /test-camera (getUserMedia +
+      // canvas, o galeria + resize), sin depender del Cloudinary Upload
+      // Widget, que fallaba con "Memoria insuficiente" al sacar fotos desde
+      // la camara nativa de Android en equipos de gama media. ---
+      function dibujarEnCanvas(source, srcWidth, srcHeight, maxWidth, maxHeight, calidad) {
+        const escala = Math.min(1, maxWidth / srcWidth, maxHeight / srcHeight);
+        const width = Math.round(srcWidth * escala);
+        const height = Math.round(srcHeight * escala);
 
-          if (result && result.event === "success") {
-            fotoUrlInput.value = result.info.secure_url;
-            preview.src = result.info.secure_url;
-            preview.hidden = false;
-            mensaje.textContent = "";
-            mensaje.className = "";
-          }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(source, 0, 0, width, height);
+
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => (blob ? resolve({ blob, width, height }) : reject(new Error("No se pudo generar el JPEG"))),
+            "image/jpeg",
+            calidad
+          );
+        });
+      }
+
+      async function archivoAResizedBlob(file, maxWidth, maxHeight, calidad) {
+        const bitmap = await createImageBitmap(file);
+        try {
+          return await dibujarEnCanvas(bitmap, bitmap.width, bitmap.height, maxWidth, maxHeight, calidad);
+        } finally {
+          bitmap.close();
         }
-      );
+      }
 
-      document.getElementById("btn-foto").addEventListener("click", () => widget.open());
+      async function subirACloudinary(blob) {
+        const formData = new FormData();
+        formData.append("file", blob, "foto.jpg");
+        formData.append("upload_preset", uploadPreset);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const cuerpo = await res.json().catch(() => ({}));
+          throw new Error(cuerpo?.error?.message || `Error HTTP ${res.status}`);
+        }
+
+        return res.json();
+      }
+
+      function mostrarFotoOk(info) {
+        preview.src = info.secure_url;
+        preview.hidden = false;
+        fotoUrlInput.value = info.secure_url;
+        fotoMensaje.textContent = "Foto lista.";
+        fotoMensaje.className = "ok";
+      }
+
+      function mostrarFotoError(err) {
+        fotoMensaje.textContent = "No se pudo procesar la foto: " + (err?.message || String(err));
+        fotoMensaje.className = "error";
+      }
+
+      const fotoMensaje = document.getElementById("foto-mensaje");
+      const btnSacarFoto = document.getElementById("btn-sacar-foto");
+      const btnElegirGaleria = document.getElementById("btn-elegir-galeria");
+      const inputGaleria = document.getElementById("input-galeria");
+      const camaraContenedor = document.getElementById("camara-contenedor");
+      const video = document.getElementById("video-preview");
+      const btnCapturar = document.getElementById("btn-capturar");
+      const btnCancelarCamara = document.getElementById("btn-cancelar-camara");
+
+      let stream = null;
+
+      function esperarVideoListo(videoEl) {
+        if (videoEl.videoWidth > 0) return Promise.resolve();
+        return new Promise((resolve) => {
+          videoEl.addEventListener("loadedmetadata", () => resolve(), { once: true });
+        });
+      }
+
+      function cerrarCamara() {
+        stream?.getTracks().forEach((track) => track.stop());
+        stream = null;
+        camaraContenedor.hidden = true;
+        video.srcObject = null;
+        btnSacarFoto.disabled = false;
+        btnElegirGaleria.disabled = false;
+      }
+
+      btnSacarFoto.addEventListener("click", async () => {
+        fotoMensaje.textContent = "";
+        fotoMensaje.className = "";
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+          fotoMensaje.textContent = "Este navegador no permite usar la cámara acá. Usá 'Elegir de galería'.";
+          fotoMensaje.className = "error";
+          return;
+        }
+
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 960 },
+            },
+            audio: false,
+          });
+          video.srcObject = stream;
+          camaraContenedor.hidden = false;
+          btnSacarFoto.disabled = true;
+          btnElegirGaleria.disabled = true;
+        } catch (err) {
+          fotoMensaje.textContent =
+            "No se pudo acceder a la cámara: " + (err?.message || String(err)) + ". Usá 'Elegir de galería'.";
+          fotoMensaje.className = "error";
+        }
+      });
+
+      btnCapturar.addEventListener("click", async () => {
+        fotoMensaje.textContent = "Subiendo foto...";
+        fotoMensaje.className = "";
+
+        try {
+          await esperarVideoListo(video);
+          const { blob } = await dibujarEnCanvas(video, video.videoWidth, video.videoHeight, 1280, 960, 0.85);
+          cerrarCamara(); // ya tenemos el blob: apagamos la camara antes de subir
+          const info = await subirACloudinary(blob);
+          mostrarFotoOk(info);
+        } catch (err) {
+          cerrarCamara();
+          mostrarFotoError(err);
+        }
+      });
+
+      btnCancelarCamara.addEventListener("click", cerrarCamara);
+      window.addEventListener("pagehide", cerrarCamara);
+
+      btnElegirGaleria.addEventListener("click", () => inputGaleria.click());
+
+      inputGaleria.addEventListener("change", async () => {
+        const file = inputGaleria.files?.[0];
+        inputGaleria.value = "";
+        if (!file) return;
+
+        fotoMensaje.textContent = "Subiendo foto...";
+        fotoMensaje.className = "";
+
+        try {
+          const { blob } = await archivoAResizedBlob(file, 1280, 960, 0.85);
+          const info = await subirACloudinary(blob);
+          mostrarFotoOk(info);
+        } catch (err) {
+          mostrarFotoError(err);
+        }
+      });
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -368,20 +545,13 @@ try {
           return;
         }
 
-        const payload = editando
-          ? {
-              producto: campoProducto.value,
-              precio: Number(campoPrecio.value),
-              categoria: campoCategoria.value,
-              stock: Number(campoStock.value),
-            }
-          : {
-              fotoUrl: fotoUrlInput.value,
-              producto: campoProducto.value,
-              precio: Number(campoPrecio.value),
-              categoria: campoCategoria.value,
-              stock: Number(campoStock.value),
-            };
+        const payload = {
+          fotoUrl: fotoUrlInput.value,
+          producto: campoProducto.value,
+          precio: Number(campoPrecio.value),
+          categoria: campoCategoria.value,
+          stock: Number(campoStock.value),
+        };
 
         btnPublicar.disabled = true;
         mensaje.textContent = editando ? "Guardando cambios..." : "Publicando...";
@@ -408,6 +578,8 @@ try {
           form.reset();
           preview.hidden = true;
           fotoUrlInput.value = "";
+          fotoMensaje.textContent = "";
+          fotoMensaje.className = "";
         } catch (err) {
           mensaje.textContent = (editando ? "No se pudo guardar: " : "No se pudo publicar: ") + err.message;
           mensaje.className = "error";
