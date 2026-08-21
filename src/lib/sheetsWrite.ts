@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { isValidCurrency, type Currency } from "./currencies";
+import { DEFAULT_CURRENCY, PRODUCT_ID_PREFIX } from "./storeConfig";
 
 export interface NewProduct {
   producto: string;
@@ -93,7 +94,7 @@ function getSheetsClient() {
 }
 
 function generateId(): string {
-  return `MUT${Date.now().toString().slice(-6)}`;
+  return `${PRODUCT_ID_PREFIX}${Date.now().toString().slice(-6)}`;
 }
 
 export async function appendProduct(product: NewProduct): Promise<string> {
@@ -158,8 +159,8 @@ export async function listAllProducts(): Promise<AdminProduct[]> {
         stock: Number(row[4]) || 0,
         fotoUrl: row[5]?.toString() ?? "",
         activo: activoRaw === "sí" || activoRaw === "si",
-        // Productos viejos no tienen esta columna (o vino invalida): ARS.
-        moneda: isValidCurrency(monedaRaw) ? monedaRaw : "ARS",
+        // Productos viejos no tienen esta columna (o vino invalida): default.
+        moneda: isValidCurrency(monedaRaw) ? monedaRaw : DEFAULT_CURRENCY,
       };
     })
     .reverse();

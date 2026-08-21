@@ -217,7 +217,11 @@ async function generarPlacaUnica(producto: PublicationProduct, branding: Brandin
   return canvasABlob(canvas);
 }
 
-async function generarPlacaLista(productos: PublicationProduct[], branding: Branding): Promise<Blob> {
+async function generarPlacaLista(
+  productos: PublicationProduct[],
+  branding: Branding,
+  titulo: string
+): Promise<Blob> {
   const { canvas, ctx } = crearLienzo();
 
   ctx.fillStyle = "#fafafa";
@@ -228,7 +232,7 @@ async function generarPlacaLista(productos: PublicationProduct[], branding: Bran
   ctx.fillStyle = "#111";
   ctx.textBaseline = "alphabetic";
   ctx.font = "700 44px system-ui, -apple-system, sans-serif";
-  ctx.fillText("Novedades", 32, 168);
+  ctx.fillText(titulo, 32, 168);
 
   const inicioLista = 210;
   const alturaDisponible = OUTPUT_HEIGHT - inicioLista - 32;
@@ -285,12 +289,16 @@ async function generarPlacaLista(productos: PublicationProduct[], branding: Bran
   return canvasABlob(canvas);
 }
 
-export async function generarPlaca(productos: PublicationProduct[], branding: Branding): Promise<Blob> {
+export async function generarPlaca(
+  productos: PublicationProduct[],
+  branding: Branding,
+  titulo: string = "Novedades"
+): Promise<Blob> {
   if (productos.length === 0) {
     throw new Error("No hay productos para generar la publicación.");
   }
   if (productos.length === 1) {
     return generarPlacaUnica(productos[0], branding);
   }
-  return generarPlacaLista(productos, branding);
+  return generarPlacaLista(productos, branding, titulo);
 }

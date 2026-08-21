@@ -1,12 +1,6 @@
-export const CATEGORIES = [
-  "Hogar",
-  "Cocina",
-  "Belleza",
-  "Tecnología",
-  "Accesorios",
-  "Textil",
-  "Otros",
-] as const;
+import { CATEGORIES } from "./storeConfig";
+
+export { CATEGORIES };
 
 export type Category = (typeof CATEGORIES)[number];
 

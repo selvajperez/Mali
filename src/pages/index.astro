@@ -1,9 +1,20 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
 import CartDrawer from "../components/CartDrawer.astro";
+import PaymentMethodsModal from "../components/PaymentMethodsModal.astro";
 import { getCatalogProducts } from "../lib/sheets";
 import { CATEGORIES } from "../lib/categories";
-import { STORE_NAME, BRAND_COLOR, BRAND_COLOR_DARK } from "../lib/storeConfig";
+import {
+  STORE_NAME,
+  BRAND_COLOR,
+  BRAND_COLOR_DARK,
+  STORE_LOGO_URL,
+  INSTAGRAM_URL,
+  FACEBOOK_URL,
+  PAYMENT_METHODS,
+  EMPTY_CATALOG_TEXT,
+  NO_RESULTS_TEXT,
+} from "../lib/storeConfig";
 
 let products: Awaited<ReturnType<typeof getCatalogProducts>> = [];
 let error: string | null = null;
@@ -17,6 +28,9 @@ try {
 const categoriasPresentes = CATEGORIES.filter((cat) =>
   products.some((p) => p.categoria === cat)
 );
+
+const hayMediosDePago = PAYMENT_METHODS.some((m) => m.activo);
+const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
 ---
 
 <!doctype html>
@@ -29,7 +43,11 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
   <body>
     <header class="header">
       <div class="header-top">
-        <span class="logo">{STORE_NAME}</span>
+        {STORE_LOGO_URL ? (
+          <img src={STORE_LOGO_URL} alt={STORE_NAME} class="logo-img" />
+        ) : (
+          <span class="logo">{STORE_NAME}</span>
+        )}
         <button type="button" id="btn-carrito" class="btn-carrito" aria-label="Ver carrito">
           🛒
           <span id="cart-badge" class="badge-carrito">0</span>
@@ -57,14 +75,40 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
 
     <main>
       {error && <p class="error">No se pudo cargar el catálogo: {error}</p>}
-      {!error && products.length === 0 && <p class="vacio">Todavía no hay productos publicados.</p>}
+      {!error && products.length === 0 && <p class="vacio">{EMPTY_CATALOG_TEXT}</p>}
       {!error && products.length > 0 && (
         <div class="grid" id="grid-productos">
           {products.map((product) => <ProductCard product={product} />)}
         </div>
       )}
-      <p class="vacio" id="sin-resultados" hidden>No encontramos productos que coincidan.</p>
+      <p class="vacio" id="sin-resultados" hidden>{NO_RESULTS_TEXT}</p>
     </main>
+
+    {(hayLinksSociales || hayMediosDePago) && (
+      <footer class="footer">
+        {hayLinksSociales && (
+          <div class="footer-social">
+            {INSTAGRAM_URL && (
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" class="footer-link">
+                Instagram
+              </a>
+            )}
+            {FACEBOOK_URL && (
+              <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" class="footer-link">
+                Facebook
+              </a>
+            )}
+          </div>
+        )}
+        {hayMediosDePago && (
+          <button type="button" id="btn-medios-pago" class="footer-link footer-btn">
+            Medios de pago
+          </button>
+        )}
+      </footer>
+    )}
+
+    <PaymentMethodsModal medios={PAYMENT_METHODS} />
 
     <style define:vars={{ brandColor: BRAND_COLOR, brandColorDark: BRAND_COLOR_DARK }}>
       * {
@@ -100,6 +144,11 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         font-weight: 800;
         letter-spacing: 0.02em;
         color: var(--brandColorDark);
+      }
+      .logo-img {
+        max-height: 2rem;
+        max-width: 55vw;
+        display: block;
       }
       .btn-carrito {
         position: relative;
@@ -185,6 +234,27 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         text-align: center;
         margin-top: 2rem;
       }
+      .footer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1.5rem 1rem 2rem;
+        color: #888;
+      }
+      .footer-social {
+        display: flex;
+        gap: 1rem;
+      }
+      .footer-link {
+        border: none;
+        background: none;
+        font: inherit;
+        color: #888;
+        text-decoration: underline;
+        font-size: 0.85rem;
+        padding: 0.25rem;
+      }
       @media (min-width: 640px) {
         .grid {
           grid-template-columns: repeat(3, 1fr);
@@ -212,7 +282,14 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         type CartItem,
       } from "../lib/cart";
       import { isValidCurrency } from "../lib/currencies";
-      import { WHATSAPP_PHONE } from "../lib/storeConfig";
+      import {
+        WHATSAPP_PHONE,
+        DEFAULT_CURRENCY,
+        ORDER_GREETING,
+        ORDER_CLOSING,
+        DELIVERY_INFO,
+        PICKUP_INFO,
+      } from "../lib/storeConfig";
 
       const buscador = document.getElementById("buscador") as HTMLInputElement | null;
       const chips = document.querySelectorAll<HTMLButtonElement>(".chip");
@@ -260,7 +337,7 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
           // Carritos guardados antes de sumar moneda no tienen ese campo.
           return datos.map((item) => ({
             ...item,
-            moneda: isValidCurrency(item.moneda) ? item.moneda : "ARS",
+            moneda: isValidCurrency(item.moneda) ? item.moneda : DEFAULT_CURRENCY,
           }));
         } catch {
           return [];
@@ -322,14 +399,14 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
                   return `<div class="cart-total-linea"><span>${etiqueta}</span><span>${formatMoney(total, moneda)}</span></div>`;
                 })
                 .join("")
-            : `<div class="cart-total-linea"><span>Total</span><span>${formatMoney(0, "ARS")}</span></div>`;
+            : `<div class="cart-total-linea"><span>Total</span><span>${formatMoney(0, DEFAULT_CURRENCY)}</span></div>`;
         }
 
         if (cartWhatsapp) cartWhatsapp.disabled = carrito.length === 0;
       }
 
       function agregarAlCarrito(id: string, nombre: string, precio: number, fotoUrl: string, moneda: string) {
-        const monedaValida = isValidCurrency(moneda) ? moneda : "ARS";
+        const monedaValida = isValidCurrency(moneda) ? moneda : DEFAULT_CURRENCY;
         const existente = carrito.find((item) => item.id === id);
         if (existente) {
           existente.cantidad += 1;
@@ -421,7 +498,12 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         // cuando recién después del fetch sabemos la URL final.
         const ventana = window.open("", "_blank");
         const stockPorId = await obtenerStockDisponible(carrito);
-        const mensaje = buildWhatsAppMessage(carrito, stockPorId);
+        const mensaje = buildWhatsAppMessage(carrito, stockPorId, {
+          saludo: ORDER_GREETING,
+          cierre: ORDER_CLOSING,
+          infoEnvio: DELIVERY_INFO,
+          infoRetiro: PICKUP_INFO,
+        });
         const url = buildWhatsAppUrl(WHATSAPP_PHONE, mensaje);
         if (ventana) {
           ventana.location.href = url;
@@ -439,6 +521,30 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
       });
 
       renderCarrito();
+
+      // --- Medios de pago ---
+      const btnMediosPago = document.getElementById("btn-medios-pago");
+      const mediosOverlay = document.getElementById("medios-overlay");
+      const mediosModal = document.getElementById("medios-modal");
+      const mediosCerrar = document.getElementById("medios-cerrar");
+
+      function abrirMediosPago() {
+        mediosOverlay?.removeAttribute("hidden");
+        mediosModal?.classList.add("abierto");
+        mediosModal?.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function cerrarMediosPago() {
+        mediosOverlay?.setAttribute("hidden", "");
+        mediosModal?.classList.remove("abierto");
+        mediosModal?.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+      }
+
+      btnMediosPago?.addEventListener("click", abrirMediosPago);
+      mediosCerrar?.addEventListener("click", cerrarMediosPago);
+      mediosOverlay?.addEventListener("click", cerrarMediosPago);
     </script>
   </body>
 </html>

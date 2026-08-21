@@ -38,7 +38,21 @@ function stockDisponiblePara(id: string, stockPorId?: StockPorId): number | unde
   return stockPorId instanceof Map ? stockPorId.get(id) : stockPorId[id];
 }
 
-export function buildWhatsAppMessage(items: CartItem[], stockPorId?: StockPorId): string {
+export interface MensajesPedido {
+  saludo?: string;
+  cierre?: string;
+  infoEnvio?: string;
+  infoRetiro?: string;
+}
+
+const SALUDO_DEFAULT = "Hola, quiero hacer este pedido:";
+const CIERRE_DEFAULT = "Quedo a la espera de confirmación de disponibilidad.";
+
+export function buildWhatsAppMessage(
+  items: CartItem[],
+  stockPorId?: StockPorId,
+  mensajes?: MensajesPedido
+): string {
   const lineas = items.flatMap((item) => {
     const linea = `- ${item.cantidad} x ${item.nombre} — ${formatMoney(item.precio, item.moneda)} c/u`;
     const disponible = stockDisponiblePara(item.id, stockPorId);
@@ -58,14 +72,18 @@ export function buildWhatsAppMessage(items: CartItem[], stockPorId?: StockPorId)
     return `${etiqueta}: ${formatMoney(total, moneda)}`;
   });
 
+  const lineasCierre = [mensajes?.cierre ?? CIERRE_DEFAULT];
+  if (mensajes?.infoEnvio) lineasCierre.push(mensajes.infoEnvio);
+  if (mensajes?.infoRetiro) lineasCierre.push(mensajes.infoRetiro);
+
   return [
-    "Hola, quiero hacer este pedido:",
+    mensajes?.saludo ?? SALUDO_DEFAULT,
     "",
     ...lineas,
     "",
     ...lineasTotal,
     "",
-    "Quedo a la espera de confirmación de disponibilidad.",
+    ...lineasCierre,
   ].join("\n");
 }
 

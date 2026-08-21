@@ -107,6 +107,39 @@ test("usa singular cuando falta exactamente una unidad", () => {
   assert.doesNotMatch(mensaje, /unidades/);
 });
 
+test("sin mensajes custom usa el saludo/cierre por defecto (compatibilidad)", () => {
+  const carrito = [item({})];
+  const mensaje = buildWhatsAppMessage(carrito);
+  assert.match(mensaje, /^Hola, quiero hacer este pedido:/);
+  assert.match(mensaje, /Quedo a la espera de confirmación de disponibilidad\.$/);
+});
+
+test("mensajes custom reemplazan saludo y cierre", () => {
+  const carrito = [item({})];
+  const mensaje = buildWhatsAppMessage(carrito, undefined, {
+    saludo: "¡Hola! Quiero encargar:",
+    cierre: "Gracias, aguardo tu confirmación.",
+  });
+  assert.match(mensaje, /^¡Hola! Quiero encargar:/);
+  assert.match(mensaje, /Gracias, aguardo tu confirmación\.$/);
+  assert.doesNotMatch(mensaje, /Hola, quiero hacer este pedido/);
+});
+
+test("info de envío/retiro se agrega solo si viene seteada", () => {
+  const carrito = [item({})];
+  const mensaje = buildWhatsAppMessage(carrito, undefined, {
+    infoEnvio: "Envíos a todo el país por correo.",
+    infoRetiro: "Retiro por el local de 9 a 18.",
+  });
+  assert.match(mensaje, /Envíos a todo el país por correo\.\nRetiro por el local de 9 a 18\.$/);
+});
+
+test("sin info de envío/retiro no agrega líneas de más (compatibilidad)", () => {
+  const carrito = [item({})];
+  const mensaje = buildWhatsAppMessage(carrito, undefined, { infoEnvio: "", infoRetiro: "" });
+  assert.match(mensaje, /Quedo a la espera de confirmación de disponibilidad\.$/);
+});
+
 test("contarUnidades suma todas las cantidades del carrito", () => {
   const carrito = [item({ cantidad: 2 }), item({ id: "B", cantidad: 3 })];
   assert.equal(contarUnidades(carrito), 5);

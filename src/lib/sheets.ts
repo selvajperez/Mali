@@ -1,6 +1,7 @@
 import { parseCsv } from "./csv";
 import { getStockStatus, type StockStatus } from "./stockStatus";
 import { isValidCurrency, type Currency } from "./currencies";
+import { DEFAULT_CURRENCY } from "./storeConfig";
 
 export interface CatalogProduct {
   id: string;
@@ -49,8 +50,8 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
         categoria: record.categoria,
         fotoUrl: record.fotoUrl,
         estado: getStockStatus(stock),
-        // Productos viejos no tienen esta columna (o vino invalida): ARS.
-        moneda: isValidCurrency(monedaRaw) ? monedaRaw : "ARS",
+        // Productos viejos no tienen esta columna (o vino invalida): default.
+        moneda: isValidCurrency(monedaRaw) ? monedaRaw : DEFAULT_CURRENCY,
         stock,
       };
     });

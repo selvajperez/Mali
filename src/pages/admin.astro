@@ -3,6 +3,7 @@ import { CATEGORIES } from "../lib/categories";
 import { CURRENCIES, formatMoney } from "../lib/currencies";
 import { listAllProducts } from "../lib/sheetsWrite";
 import PublicationModal from "../components/PublicationModal.astro";
+import { STORE_NAME, BRAND_COLOR } from "../lib/storeConfig";
 
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
 const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-products";
@@ -22,11 +23,11 @@ try {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MUTE - Administración</title>
+    <title>{STORE_NAME} - Administración</title>
   </head>
   <body>
     <header>
-      <h1>MUTE - Administración</h1>
+      <h1>{STORE_NAME} - Administración</h1>
     </header>
 
     <main>
@@ -177,9 +178,9 @@ try {
       </section>
     </main>
 
-    <PublicationModal />
+    <PublicationModal brandColor={BRAND_COLOR} />
 
-    <style>
+    <style define:vars={{ brandColor: BRAND_COLOR }}>
       * {
         box-sizing: border-box;
       }
@@ -300,7 +301,7 @@ try {
         border-radius: 8px;
       }
       #btn-publicar {
-        background: #1a7a3c;
+        background: var(--brandColor);
         color: #fff;
         border: none;
         font-weight: 600;
@@ -350,7 +351,7 @@ try {
         color: #555;
       }
       #btn-preparar-publicacion {
-        background: #1a7a3c;
+        background: var(--brandColor);
         color: #fff;
         border: none;
         font-weight: 700;
@@ -1149,7 +1150,7 @@ try {
           // Secuencial (no Promise.all): evita mantener varios canvases/fotos
           // decodificadas en memoria al mismo tiempo (importa en gama media).
           for (const grupo of grupos) {
-            blobs.push(await generarPlaca(grupo, branding));
+            blobs.push(await generarPlaca(grupo, branding, PUBLICATION_TITLE));
           }
 
           objectUrls = blobs.map((blob) => URL.createObjectURL(blob));

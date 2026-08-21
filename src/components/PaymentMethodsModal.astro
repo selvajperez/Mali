@@ -1,0 +1,140 @@
+---
+import type { MedioPago } from "../lib/storeConfig";
+
+interface Props {
+  medios: MedioPago[];
+}
+
+const { medios } = Astro.props;
+const activos = medios.filter((m) => m.activo);
+
+function tituloMedio(m: MedioPago): string {
+  switch (m.tipo) {
+    case "efectivo":
+      return "Efectivo";
+    case "transferencia":
+      return "Transferencia bancaria";
+    case "mercadoPago":
+      return "Mercado Pago";
+    case "tarjeta":
+      return "Tarjeta";
+    case "contraEntrega":
+      return "Pago contra entrega / al retirar";
+    case "otro":
+      return m.nombre;
+  }
+}
+---
+
+<div id="medios-overlay" class="medios-overlay" hidden></div>
+
+<section id="medios-modal" class="medios-modal" aria-hidden="true">
+  <div class="medios-header">
+    <h2>Medios de pago</h2>
+    <button type="button" id="medios-cerrar" aria-label="Cerrar">✕</button>
+  </div>
+
+  <div class="medios-cuerpo">
+    {activos.length === 0 && <p class="medios-vacio">Todavía no hay medios de pago configurados.</p>}
+
+    {activos.map((m) => (
+      <div class="medio-card">
+        <h3>{tituloMedio(m)}</h3>
+        {m.tipo === "transferencia" && (
+          <>
+            {m.alias && <p><strong>Alias:</strong> {m.alias}</p>}
+            {m.cbu && <p><strong>CBU/CVU:</strong> {m.cbu}</p>}
+            {m.titular && <p><strong>Titular:</strong> {m.titular}</p>}
+          </>
+        )}
+        {m.tipo === "mercadoPago" && (
+          <>
+            {m.alias && <p><strong>Alias:</strong> {m.alias}</p>}
+            {m.link && (
+              <p>
+                <a href={m.link} target="_blank" rel="noopener noreferrer">{m.link}</a>
+              </p>
+            )}
+          </>
+        )}
+        {(m.tipo === "efectivo" || m.tipo === "tarjeta" || m.tipo === "contraEntrega") && m.nota && (
+          <p>{m.nota}</p>
+        )}
+        {m.tipo === "otro" && m.descripcion && <p>{m.descripcion}</p>}
+      </div>
+    ))}
+  </div>
+</section>
+
+<style is:global>
+  .medios-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 30;
+  }
+  .medios-modal {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 20vh;
+    background: #fff;
+    z-index: 31;
+    border-radius: 16px 16px 0 0;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .medios-modal.abierto {
+    transform: translateY(0);
+  }
+  .medios-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  .medios-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+  #medios-cerrar {
+    border: none;
+    background: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.35rem 0.6rem;
+  }
+  .medios-cuerpo {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .medios-vacio {
+    color: #666;
+    text-align: center;
+  }
+  .medio-card {
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 0.85rem;
+  }
+  .medio-card h3 {
+    margin: 0 0 0.3rem;
+    font-size: 1rem;
+  }
+  .medio-card p {
+    margin: 0.15rem 0;
+    font-size: 0.9rem;
+    color: #444;
+  }
+</style>

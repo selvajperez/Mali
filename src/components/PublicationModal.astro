@@ -1,4 +1,9 @@
 ---
+interface Props {
+  brandColor?: string;
+}
+
+const { brandColor = "#1a7a3c" } = Astro.props;
 ---
 
 <div id="pub-overlay" class="pub-overlay" hidden></div>
@@ -32,7 +37,7 @@
   </div>
 </section>
 
-<style is:global>
+<style is:global define:vars={{ brandColor }}>
   .pub-overlay {
     position: fixed;
     inset: 0;
@@ -107,8 +112,8 @@
     font-size: 0.95rem;
   }
   .pub-tab.activa {
-    background: #1a7a3c;
-    border-color: #1a7a3c;
+    background: var(--brandColor);
+    border-color: var(--brandColor);
     color: #fff;
   }
   .pub-preview-caja {
