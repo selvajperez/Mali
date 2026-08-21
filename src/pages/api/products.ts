@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { appendProduct } from "../../lib/sheetsWrite";
 import { isValidCategory } from "../../lib/categories";
+import { isValidCurrency } from "../../lib/currencies";
 
 export const prerender = false;
 
@@ -12,11 +13,12 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonError("JSON inválido", 400);
   }
 
-  const { producto, precio, categoria, stock, fotoUrl } = body as Record<string, unknown>;
+  const { producto, precio, categoria, stock, fotoUrl, moneda } = body as Record<string, unknown>;
 
   if (
     typeof producto !== "string" || !producto.trim() ||
     !isValidCategory(categoria) ||
+    !isValidCurrency(moneda) ||
     typeof fotoUrl !== "string" || !fotoUrl.trim() ||
     typeof precio !== "number" || !Number.isFinite(precio) || precio < 0 ||
     typeof stock !== "number" || !Number.isFinite(stock) || stock < 0
@@ -25,7 +27,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const id = await appendProduct({ producto, precio, categoria, stock, fotoUrl });
+    const id = await appendProduct({ producto, precio, categoria, stock, fotoUrl, moneda });
     return new Response(JSON.stringify({ id }), {
       status: 201,
       headers: { "Content-Type": "application/json" },

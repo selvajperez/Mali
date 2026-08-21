@@ -1,34 +1,53 @@
+import { CURRENCIES, formatMoney, type Currency } from "./currencies";
+
+export { formatMoney };
+
 export interface CartItem {
   id: string;
   nombre: string;
   precio: number;
   fotoUrl: string;
   cantidad: number;
-}
-
-export function formatMoney(n: number): string {
-  return `$${n.toLocaleString("es-AR")}`;
-}
-
-export function calcularTotal(items: CartItem[]): number {
-  return items.reduce((total, item) => total + item.precio * item.cantidad, 0);
+  moneda: Currency;
 }
 
 export function contarUnidades(items: CartItem[]): number {
   return items.reduce((total, item) => total + item.cantidad, 0);
 }
 
+export interface TotalPorMoneda {
+  moneda: Currency;
+  total: number;
+}
+
+export function calcularTotalesPorMoneda(items: CartItem[]): TotalPorMoneda[] {
+  const totales = new Map<Currency, number>();
+  for (const item of items) {
+    totales.set(item.moneda, (totales.get(item.moneda) ?? 0) + item.precio * item.cantidad);
+  }
+  return CURRENCIES.filter((moneda) => totales.has(moneda)).map((moneda) => ({
+    moneda,
+    total: totales.get(moneda) ?? 0,
+  }));
+}
+
 export function buildWhatsAppMessage(items: CartItem[]): string {
   const lineas = items.map(
-    (item) => `- ${item.cantidad} x ${item.nombre} — ${formatMoney(item.precio)} c/u`
+    (item) => `- ${item.cantidad} x ${item.nombre} — ${formatMoney(item.precio, item.moneda)} c/u`
   );
+
+  const totales = calcularTotalesPorMoneda(items);
+  const lineasTotal = totales.map(({ moneda, total }) => {
+    const etiqueta = totales.length > 1 ? `Total ${moneda}` : "Total";
+    return `${etiqueta}: ${formatMoney(total, moneda)}`;
+  });
 
   return [
     "Hola, quiero hacer este pedido:",
     "",
     ...lineas,
     "",
-    `Total: ${formatMoney(calcularTotal(items))}`,
+    ...lineasTotal,
     "",
     "Quedo a la espera de confirmación de disponibilidad.",
   ].join("\n");

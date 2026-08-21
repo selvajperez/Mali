@@ -1,5 +1,6 @@
 import { parseCsv } from "./csv";
 import { getStockStatus, type StockStatus } from "./stockStatus";
+import { isValidCurrency, type Currency } from "./currencies";
 
 export interface CatalogProduct {
   id: string;
@@ -8,9 +9,10 @@ export interface CatalogProduct {
   categoria: string;
   fotoUrl: string;
   estado: StockStatus;
+  moneda: Currency;
 }
 
-const COLUMNS = ["id", "producto", "precio", "categoria", "stock", "fotoUrl", "activo"] as const;
+const COLUMNS = ["id", "producto", "precio", "categoria", "stock", "fotoUrl", "activo", "moneda"] as const;
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
   const csvUrl = import.meta.env.SHEETS_CSV_URL;
@@ -36,12 +38,17 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       return record;
     })
     .filter((record) => record.activo.toLowerCase() === "sí" || record.activo.toLowerCase() === "si")
-    .map((record) => ({
-      id: record.id,
-      producto: record.producto,
-      precio: Number(record.precio) || 0,
-      categoria: record.categoria,
-      fotoUrl: record.fotoUrl,
-      estado: getStockStatus(Number(record.stock) || 0),
-    }));
+    .map((record) => {
+      const monedaRaw = record.moneda.toUpperCase();
+      return {
+        id: record.id,
+        producto: record.producto,
+        precio: Number(record.precio) || 0,
+        categoria: record.categoria,
+        fotoUrl: record.fotoUrl,
+        estado: getStockStatus(Number(record.stock) || 0),
+        // Productos viejos no tienen esta columna (o vino invalida): ARS.
+        moneda: isValidCurrency(monedaRaw) ? monedaRaw : "ARS",
+      };
+    });
 }

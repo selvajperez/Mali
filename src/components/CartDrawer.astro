@@ -14,10 +14,7 @@
 
   <div class="cart-footer">
     <button type="button" id="cart-vaciar" class="btn-vaciar" hidden>Vaciar carrito</button>
-    <div class="cart-total">
-      <span>Total</span>
-      <span id="cart-total-monto">$0</span>
-    </div>
+    <div class="cart-total" id="cart-totales"></div>
     <button type="button" id="cart-whatsapp" class="btn-whatsapp" disabled>
       Pedir por WhatsApp
     </button>
@@ -156,6 +153,11 @@
     padding: 0.15rem 0.25rem;
   }
   .cart-total {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .cart-total-linea {
     display: flex;
     justify-content: space-between;
     font-weight: 700;

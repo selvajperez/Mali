@@ -1,5 +1,6 @@
 ---
 import { CATEGORIES } from "../lib/categories";
+import { CURRENCIES, formatMoney } from "../lib/currencies";
 import { listAllProducts } from "../lib/sheetsWrite";
 
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
@@ -75,6 +76,13 @@ try {
           </div>
 
           <div class="campo">
+            <label for="moneda">Moneda</label>
+            <select id="moneda" name="moneda" required>
+              {CURRENCIES.map((m) => <option value={m} selected={m === "ARS"}>{m}</option>)}
+            </select>
+          </div>
+
+          <div class="campo">
             <label for="categoria">Categoría</label>
             <select id="categoria" name="categoria" required>
               <option value="" disabled selected>Elegí una categoría</option>
@@ -106,7 +114,7 @@ try {
               <img src={product.fotoUrl} alt={product.producto} />
               <div class="info">
                 <h3>{product.producto}</h3>
-                <p>${product.precio.toLocaleString("es-AR")} · {product.categoria}</p>
+                <p>{formatMoney(product.precio, product.moneda)} · {product.categoria}</p>
                 <p>Stock: {product.stock}</p>
                 <span class={`badge ${product.activo ? "badge-activo" : "badge-inactivo"}`}>
                   {product.activo ? "Activo" : "Inactivo"}
@@ -122,6 +130,7 @@ try {
                   data-categoria={product.categoria}
                   data-stock={product.stock}
                   data-foto={product.fotoUrl}
+                  data-moneda={product.moneda}
                 >
                   Editar
                 </button>
@@ -371,6 +380,7 @@ try {
       const formTitulo = document.getElementById("form-titulo");
       const campoProducto = document.getElementById("producto");
       const campoPrecio = document.getElementById("precio");
+      const campoMoneda = document.getElementById("moneda");
       const campoCategoria = document.getElementById("categoria");
       const campoStock = document.getElementById("stock");
 
@@ -387,6 +397,7 @@ try {
         preview.hidden = false;
         campoProducto.value = datos.producto;
         campoPrecio.value = datos.precio;
+        campoMoneda.value = datos.moneda;
         campoCategoria.value = datos.categoria;
         campoStock.value = datos.stock;
         mensaje.textContent = "";
@@ -680,6 +691,7 @@ try {
           fotoUrl: fotoUrlInput.value,
           producto: campoProducto.value,
           precio: Number(campoPrecio.value),
+          moneda: campoMoneda.value,
           categoria: campoCategoria.value,
           stock: Number(campoStock.value),
         };
@@ -738,6 +750,7 @@ try {
             categoria: btn.dataset.categoria,
             stock: btn.dataset.stock,
             foto: btn.dataset.foto,
+            moneda: btn.dataset.moneda,
           });
         });
 

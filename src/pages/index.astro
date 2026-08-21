@@ -206,11 +206,12 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
       import {
         buildWhatsAppMessage,
         buildWhatsAppUrl,
-        calcularTotal,
+        calcularTotalesPorMoneda,
         contarUnidades,
         formatMoney,
         type CartItem,
       } from "../lib/cart";
+      import { isValidCurrency } from "../lib/currencies";
       import { WHATSAPP_PHONE } from "../lib/storeConfig";
 
       const buscador = document.getElementById("buscador") as HTMLInputElement | null;
@@ -255,7 +256,12 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
           const guardado = localStorage.getItem(CART_KEY);
           if (!guardado) return [];
           const datos = JSON.parse(guardado);
-          return Array.isArray(datos) ? datos : [];
+          if (!Array.isArray(datos)) return [];
+          // Carritos guardados antes de sumar moneda no tienen ese campo.
+          return datos.map((item) => ({
+            ...item,
+            moneda: isValidCurrency(item.moneda) ? item.moneda : "ARS",
+          }));
         } catch {
           return [];
         }
@@ -274,7 +280,7 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
       const cartCerrar = document.getElementById("cart-cerrar");
       const cartItemsEl = document.getElementById("cart-items");
       const cartVacioEl = document.getElementById("cart-vacio");
-      const cartTotalMonto = document.getElementById("cart-total-monto");
+      const cartTotales = document.getElementById("cart-totales");
       const cartWhatsapp = document.getElementById("cart-whatsapp") as HTMLButtonElement | null;
       const cartVaciar = document.getElementById("cart-vaciar") as HTMLButtonElement | null;
 
@@ -290,7 +296,7 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
                   <img src="${item.fotoUrl}" alt="${item.nombre}" />
                   <div class="cart-item-info">
                     <p class="cart-item-nombre">${item.nombre}</p>
-                    <p class="cart-item-precio">${formatMoney(item.precio)} c/u</p>
+                    <p class="cart-item-precio">${formatMoney(item.precio, item.moneda)} c/u</p>
                     <div class="cart-item-cantidad">
                       <button type="button" class="btn-qty" data-accion="restar" aria-label="Restar unidad">−</button>
                       <span>${item.cantidad}</span>
@@ -298,7 +304,7 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
                       <button type="button" class="btn-eliminar" data-accion="eliminar" aria-label="Eliminar producto">Eliminar</button>
                     </div>
                   </div>
-                  <p class="cart-item-subtotal">${formatMoney(item.precio * item.cantidad)}</p>
+                  <p class="cart-item-subtotal">${formatMoney(item.precio * item.cantidad, item.moneda)}</p>
                 </li>
               `
             )
@@ -306,16 +312,29 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         }
 
         if (cartVacioEl) cartVacioEl.hidden = carrito.length > 0;
-        if (cartTotalMonto) cartTotalMonto.textContent = formatMoney(calcularTotal(carrito));
+
+        if (cartTotales) {
+          const totales = calcularTotalesPorMoneda(carrito);
+          cartTotales.innerHTML = totales.length
+            ? totales
+                .map(({ moneda, total }) => {
+                  const etiqueta = totales.length > 1 ? `Total ${moneda}` : "Total";
+                  return `<div class="cart-total-linea"><span>${etiqueta}</span><span>${formatMoney(total, moneda)}</span></div>`;
+                })
+                .join("")
+            : `<div class="cart-total-linea"><span>Total</span><span>${formatMoney(0, "ARS")}</span></div>`;
+        }
+
         if (cartWhatsapp) cartWhatsapp.disabled = carrito.length === 0;
       }
 
-      function agregarAlCarrito(id: string, nombre: string, precio: number, fotoUrl: string) {
+      function agregarAlCarrito(id: string, nombre: string, precio: number, fotoUrl: string, moneda: string) {
+        const monedaValida = isValidCurrency(moneda) ? moneda : "ARS";
         const existente = carrito.find((item) => item.id === id);
         if (existente) {
           existente.cantidad += 1;
         } else {
-          carrito.push({ id, nombre, precio, fotoUrl, cantidad: 1 });
+          carrito.push({ id, nombre, precio, fotoUrl, cantidad: 1, moneda: monedaValida });
         }
         guardarCarrito();
         renderCarrito();
@@ -358,9 +377,9 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
 
       document.querySelectorAll<HTMLButtonElement>(".btn-agregar").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const { id, nombre, precio, foto } = btn.dataset;
-          if (!id || !nombre || !precio || !foto) return;
-          agregarAlCarrito(id, nombre, Number(precio), foto);
+          const { id, nombre, precio, foto, moneda } = btn.dataset;
+          if (!id || !nombre || !precio || !foto || !moneda) return;
+          agregarAlCarrito(id, nombre, Number(precio), foto, moneda);
         });
       });
 

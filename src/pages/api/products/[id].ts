@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { setProductActivo, updateProductFields } from "../../../lib/sheetsWrite";
 import { isValidCategory } from "../../../lib/categories";
+import { isValidCurrency } from "../../../lib/currencies";
 
 export const prerender = false;
 
@@ -29,11 +30,12 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       });
     }
 
-    const { producto, precio, categoria, stock, fotoUrl } = data;
+    const { producto, precio, categoria, stock, fotoUrl, moneda } = data;
 
     if (
       typeof producto !== "string" || !producto.trim() ||
       !isValidCategory(categoria) ||
+      !isValidCurrency(moneda) ||
       typeof fotoUrl !== "string" || !fotoUrl.trim() ||
       typeof precio !== "number" || !Number.isFinite(precio) || precio < 0 ||
       typeof stock !== "number" || !Number.isFinite(stock) || stock < 0
@@ -41,7 +43,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       return jsonError("Datos del producto incompletos o inválidos", 400);
     }
 
-    await updateProductFields(id, { producto, precio, categoria, stock, fotoUrl });
+    await updateProductFields(id, { producto, precio, categoria, stock, fotoUrl, moneda });
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

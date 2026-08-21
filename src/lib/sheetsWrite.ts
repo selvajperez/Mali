@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { isValidCurrency, type Currency } from "./currencies";
 
 export interface NewProduct {
   producto: string;
@@ -6,6 +7,7 @@ export interface NewProduct {
   categoria: string;
   stock: number;
   fotoUrl: string;
+  moneda: string;
 }
 
 function normalizePrivateKey(raw: string): string {
@@ -100,11 +102,11 @@ export async function appendProduct(product: NewProduct): Promise<string> {
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: "A:G",
+    range: "A:H",
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [
-        [id, product.producto, product.precio, product.categoria, product.stock, product.fotoUrl, "sí"],
+        [id, product.producto, product.precio, product.categoria, product.stock, product.fotoUrl, "sí", product.moneda],
       ],
     },
   });
@@ -120,6 +122,7 @@ export interface AdminProduct {
   stock: number;
   fotoUrl: string;
   activo: boolean;
+  moneda: Currency;
 }
 
 export interface ProductEdits {
@@ -128,6 +131,7 @@ export interface ProductEdits {
   categoria: string;
   stock: number;
   fotoUrl: string;
+  moneda: string;
 }
 
 export async function listAllProducts(): Promise<AdminProduct[]> {
@@ -135,7 +139,7 @@ export async function listAllProducts(): Promise<AdminProduct[]> {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
-    range: "A2:G",
+    range: "A2:H",
     valueRenderOption: "UNFORMATTED_VALUE",
   });
 
@@ -145,6 +149,7 @@ export async function listAllProducts(): Promise<AdminProduct[]> {
     .filter((row) => (row[0] ?? "").toString().trim() !== "")
     .map((row) => {
       const activoRaw = (row[6] ?? "").toString().trim().toLowerCase();
+      const monedaRaw = (row[7] ?? "").toString().trim().toUpperCase();
       return {
         id: row[0]?.toString() ?? "",
         producto: row[1]?.toString() ?? "",
@@ -153,6 +158,8 @@ export async function listAllProducts(): Promise<AdminProduct[]> {
         stock: Number(row[4]) || 0,
         fotoUrl: row[5]?.toString() ?? "",
         activo: activoRaw === "sí" || activoRaw === "si",
+        // Productos viejos no tienen esta columna (o vino invalida): ARS.
+        moneda: isValidCurrency(monedaRaw) ? monedaRaw : "ARS",
       };
     })
     .reverse();
@@ -182,12 +189,22 @@ export async function updateProductFields(id: string, edits: ProductEdits): Prom
   const { sheets, sheetId } = getSheetsClient();
   const row = await findRowById(sheets, sheetId, id);
 
+  // Dos updates separados: B:F y H, dejando G (Activo) sin tocar entre medio.
   await sheets.spreadsheets.values.update({
     spreadsheetId: sheetId,
     range: `B${row}:F${row}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [[edits.producto, edits.precio, edits.categoria, edits.stock, edits.fotoUrl]],
+    },
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `H${row}:H${row}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[edits.moneda]],
     },
   });
 }
