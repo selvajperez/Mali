@@ -1,0 +1,167 @@
+---
+---
+
+<div id="pub-overlay" class="pub-overlay" hidden></div>
+
+<section id="pub-modal" class="pub-modal" aria-hidden="true">
+  <div class="pub-header">
+    <h2>Publicación lista</h2>
+    <button type="button" id="pub-cerrar" aria-label="Cerrar">✕</button>
+  </div>
+
+  <div class="pub-cuerpo">
+    <p id="pub-estado" class="pub-estado" role="status">Generando…</p>
+
+    <div id="pub-tabs" class="pub-tabs" hidden>
+      <button type="button" class="pub-tab" data-placa="0">Placa 1</button>
+      <button type="button" class="pub-tab" data-placa="1">Placa 2</button>
+    </div>
+
+    <div class="pub-preview-caja">
+      <img id="pub-preview-img" alt="Vista previa de la publicación" hidden />
+    </div>
+
+    <label for="pub-texto" class="pub-label">Texto sugerido (editable)</label>
+    <textarea id="pub-texto" class="pub-texto" rows="8"></textarea>
+
+    <button type="button" id="pub-copiar-texto" class="pub-btn pub-btn-secundario">
+      Copiar texto
+    </button>
+
+    <div id="pub-acciones-compartir" class="pub-acciones"></div>
+  </div>
+</section>
+
+<style is:global>
+  .pub-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 30;
+  }
+  .pub-modal {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 5vh;
+    background: #fff;
+    z-index: 31;
+    border-radius: 16px 16px 0 0;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .pub-modal.abierto {
+    transform: translateY(0);
+  }
+  .pub-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  .pub-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+  #pub-cerrar {
+    border: none;
+    background: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.35rem 0.6rem;
+  }
+  .pub-cuerpo {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .pub-estado {
+    margin: 0;
+    color: #666;
+    text-align: center;
+  }
+  .pub-tabs {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .pub-tabs[hidden] {
+    display: none;
+  }
+  .pub-tab {
+    flex: 1;
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .pub-tab.activa {
+    background: #1a7a3c;
+    border-color: #1a7a3c;
+    color: #fff;
+  }
+  .pub-preview-caja {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    background: #f2f2f2;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #pub-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .pub-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .pub-texto {
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.65rem;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .pub-btn {
+    width: 100%;
+    padding: 0.85rem;
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .pub-btn-secundario {
+    background: #fff;
+    border: 1px solid #ccc;
+    color: #222;
+  }
+  .pub-btn-primario {
+    background: #25d366;
+    color: #fff;
+  }
+  .pub-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .pub-btn:disabled {
+    opacity: 0.5;
+  }
+</style>

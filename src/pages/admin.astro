@@ -2,6 +2,8 @@
 import { CATEGORIES } from "../lib/categories";
 import { CURRENCIES, formatMoney } from "../lib/currencies";
 import { listAllProducts } from "../lib/sheetsWrite";
+import { getStockStatus } from "../lib/stockStatus";
+import PublicationModal from "../components/PublicationModal.astro";
 
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
 const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-products";
@@ -108,45 +110,69 @@ try {
         {listError && <p class="error">No se pudo cargar la lista: {listError}</p>}
         {!listError && products.length === 0 && <p>Todavía no hay productos cargados.</p>}
 
-        {!listError && products.map((product) => (
-          <article class="product-card" data-product-id={product.id}>
-            <div class="vista" data-role="vista">
-              <img src={product.fotoUrl} alt={product.producto} />
-              <div class="info">
-                <h3>{product.producto}</h3>
-                <p>{formatMoney(product.precio, product.moneda)} · {product.categoria}</p>
-                <p>Stock: {product.stock}</p>
-                <span class={`badge ${product.activo ? "badge-activo" : "badge-inactivo"}`}>
-                  {product.activo ? "Activo" : "Inactivo"}
-                </span>
+        {!listError && products.some((p) => p.activo) && (
+          <div id="barra-publicacion" class="barra-publicacion">
+            <span id="contador-seleccion">0 seleccionados</span>
+            <button type="button" id="btn-preparar-publicacion" disabled>
+              Preparar publicación
+            </button>
+          </div>
+        )}
+        <p id="mensaje-publicacion" role="status"></p>
+
+        {!listError && products.map((product) => {
+          const agotado = getStockStatus(product.stock) === "Agotado";
+          return (
+            <article class="product-card" data-product-id={product.id}>
+              <div class="vista" data-role="vista">
+                {product.activo && (
+                  <input
+                    type="checkbox"
+                    class="chk-publicacion"
+                    data-id={product.id}
+                    checked={!agotado}
+                    aria-label={`Seleccionar ${product.producto} para publicación`}
+                  />
+                )}
+                <img src={product.fotoUrl} alt={product.producto} />
+                <div class="info">
+                  <h3>{product.producto}</h3>
+                  <p>{formatMoney(product.precio, product.moneda)} · {product.categoria}</p>
+                  <p>Stock: {product.stock}</p>
+                  <span class={`badge ${product.activo ? "badge-activo" : "badge-inactivo"}`}>
+                    {product.activo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+                <div class="acciones">
+                  <button
+                    type="button"
+                    class="btn-editar"
+                    data-id={product.id}
+                    data-producto={product.producto}
+                    data-precio={product.precio}
+                    data-categoria={product.categoria}
+                    data-stock={product.stock}
+                    data-foto={product.fotoUrl}
+                    data-moneda={product.moneda}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-toggle-activo"
+                    data-activo={String(product.activo)}
+                  >
+                    {product.activo ? "Desactivar" : "Activar"}
+                  </button>
+                </div>
               </div>
-              <div class="acciones">
-                <button
-                  type="button"
-                  class="btn-editar"
-                  data-id={product.id}
-                  data-producto={product.producto}
-                  data-precio={product.precio}
-                  data-categoria={product.categoria}
-                  data-stock={product.stock}
-                  data-foto={product.fotoUrl}
-                  data-moneda={product.moneda}
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  class="btn-toggle-activo"
-                  data-activo={String(product.activo)}
-                >
-                  {product.activo ? "Desactivar" : "Activar"}
-                </button>
-              </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </section>
     </main>
+
+    <PublicationModal />
 
     <style>
       * {
@@ -294,6 +320,42 @@ try {
         color: #a11f1f;
       }
 
+      .barra-publicacion {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #fff;
+        border: 1px solid #e2e2e2;
+        border-radius: 12px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+      #contador-seleccion {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #555;
+      }
+      #btn-preparar-publicacion {
+        background: #1a7a3c;
+        color: #fff;
+        border: none;
+        font-weight: 700;
+        padding: 0.7rem 1rem;
+        white-space: nowrap;
+      }
+      #btn-preparar-publicacion:disabled {
+        opacity: 0.5;
+      }
+      #mensaje-publicacion {
+        min-height: 1.2rem;
+      }
+      #mensaje-publicacion.aviso {
+        color: #8a6100;
+      }
       .product-card {
         background: #fff;
         border: 1px solid #e2e2e2;
@@ -306,6 +368,12 @@ try {
         gap: 0.75rem;
         align-items: flex-start;
         flex-wrap: wrap;
+      }
+      .chk-publicacion {
+        width: 1.5rem;
+        height: 1.5rem;
+        flex-shrink: 0;
+        margin: 0.1rem 0 0;
       }
       .vista img {
         width: 64px;
@@ -773,6 +841,265 @@ try {
             mostrarErrorLista("No se pudo actualizar el estado: " + err.message);
             btn.disabled = false;
           }
+        });
+      });
+    </script>
+
+    <script>
+      import {
+        planPlacas,
+        buildSuggestedText,
+        MAX_PRODUCTOS_PUBLICACION,
+        type PublicationProduct,
+      } from "../lib/publicationPlan";
+      import { generarPlaca, type Branding } from "../lib/canvasComposer";
+      import {
+        crearArchivos,
+        puedeCompartir,
+        puedeCompartirVarios,
+        compartirArchivos,
+        descargarArchivo,
+        copiarTexto,
+      } from "../lib/shareImages";
+      import { isValidCurrency } from "../lib/currencies";
+      import {
+        STORE_NAME,
+        BRAND_COLOR,
+        PUBLICATION_TITLE,
+        PUBLICATION_CLOSING,
+        PUBLICATION_HASHTAGS,
+      } from "../lib/storeConfig";
+
+      const branding: Branding = { storeName: STORE_NAME, brandColor: BRAND_COLOR };
+
+      const contadorSeleccion = document.getElementById("contador-seleccion");
+      const btnPreparar = document.getElementById("btn-preparar-publicacion") as HTMLButtonElement | null;
+      const mensajePublicacion = document.getElementById("mensaje-publicacion");
+      const checkboxes = document.querySelectorAll<HTMLInputElement>(".chk-publicacion");
+
+      function mostrarMensajePublicacion(texto: string) {
+        if (!mensajePublicacion) return;
+        mensajePublicacion.textContent = texto;
+        mensajePublicacion.className = "aviso";
+        setTimeout(() => {
+          mensajePublicacion.textContent = "";
+          mensajePublicacion.className = "";
+        }, 4000);
+      }
+
+      function actualizarBarra() {
+        const seleccionados = document.querySelectorAll(".chk-publicacion:checked").length;
+        if (contadorSeleccion) {
+          contadorSeleccion.textContent = `${seleccionados} seleccionado${seleccionados === 1 ? "" : "s"}`;
+        }
+        if (btnPreparar) btnPreparar.disabled = seleccionados === 0;
+      }
+
+      checkboxes.forEach((chk) => {
+        chk.addEventListener("change", () => {
+          const seleccionados = document.querySelectorAll(".chk-publicacion:checked").length;
+          if (seleccionados > MAX_PRODUCTOS_PUBLICACION) {
+            chk.checked = false;
+            mostrarMensajePublicacion(`Podés preparar hasta ${MAX_PRODUCTOS_PUBLICACION} productos por publicación.`);
+          }
+          actualizarBarra();
+        });
+      });
+
+      actualizarBarra();
+
+      function leerProductosSeleccionados(): PublicationProduct[] {
+        const seleccionados: PublicationProduct[] = [];
+
+        document.querySelectorAll<HTMLInputElement>(".chk-publicacion:checked").forEach((chk) => {
+          const card = chk.closest<HTMLElement>(".product-card");
+          const btnEditar = card?.querySelector<HTMLButtonElement>(".btn-editar");
+          if (!btnEditar) return;
+
+          const { id, producto, precio, foto, moneda } = btnEditar.dataset;
+          if (!id || !producto || !precio || !foto || !isValidCurrency(moneda)) return;
+
+          seleccionados.push({ id, producto, precio: Number(precio), moneda, fotoUrl: foto });
+        });
+
+        return seleccionados;
+      }
+
+      // --- Modal de publicación ---
+      const pubOverlay = document.getElementById("pub-overlay");
+      const pubModal = document.getElementById("pub-modal");
+      const pubCerrar = document.getElementById("pub-cerrar");
+      const pubEstado = document.getElementById("pub-estado");
+      const pubTabs = document.getElementById("pub-tabs");
+      const pubPreviewImg = document.getElementById("pub-preview-img") as HTMLImageElement | null;
+      const pubTexto = document.getElementById("pub-texto") as HTMLTextAreaElement | null;
+      const pubCopiarTexto = document.getElementById("pub-copiar-texto") as HTMLButtonElement | null;
+      const pubAccionesCompartir = document.getElementById("pub-acciones-compartir");
+
+      let objectUrls: string[] = [];
+
+      function revocarObjectUrls() {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        objectUrls = [];
+      }
+
+      function mostrarPlaca(indice: number) {
+        if (pubPreviewImg) {
+          pubPreviewImg.src = objectUrls[indice];
+          pubPreviewImg.hidden = false;
+        }
+        pubTabs?.querySelectorAll<HTMLButtonElement>(".pub-tab").forEach((tab, i) => {
+          tab.classList.toggle("activa", i === indice);
+        });
+      }
+
+      function abrirModal() {
+        pubOverlay?.removeAttribute("hidden");
+        pubModal?.classList.add("abierto");
+        pubModal?.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+      }
+
+      function cerrarModal() {
+        pubOverlay?.setAttribute("hidden", "");
+        pubModal?.classList.remove("abierto");
+        pubModal?.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+        revocarObjectUrls();
+        if (pubPreviewImg) {
+          pubPreviewImg.hidden = true;
+          pubPreviewImg.removeAttribute("src");
+        }
+        if (pubAccionesCompartir) pubAccionesCompartir.innerHTML = "";
+      }
+
+      pubCerrar?.addEventListener("click", cerrarModal);
+      pubOverlay?.addEventListener("click", cerrarModal);
+
+      function renderAccionesCompartir(files: File[], texto: string) {
+        if (!pubAccionesCompartir) return;
+        pubAccionesCompartir.innerHTML = "";
+
+        function crearBoton(etiqueta: string, primario: boolean, onClick: () => void): HTMLButtonElement {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = etiqueta;
+          btn.className = `pub-btn ${primario ? "pub-btn-primario" : "pub-btn-secundario"}`;
+          btn.addEventListener("click", onClick);
+          return btn;
+        }
+
+        if (files.length === 1) {
+          if (puedeCompartir()) {
+            pubAccionesCompartir.appendChild(
+              crearBoton("Compartir", true, async () => {
+                const resultado = await compartirArchivos(files, texto, STORE_NAME);
+                if (resultado === "error") {
+                  mostrarMensajePublicacion("No se pudo compartir. Probá 'Guardar imagen'.");
+                }
+              })
+            );
+          } else {
+            pubAccionesCompartir.appendChild(
+              crearBoton("Guardar imagen", true, () => descargarArchivo(files[0]))
+            );
+          }
+          return;
+        }
+
+        // Dos placas.
+        if (puedeCompartir() && puedeCompartirVarios(files)) {
+          pubAccionesCompartir.appendChild(
+            crearBoton("Compartir (2 imágenes)", true, async () => {
+              const resultado = await compartirArchivos(files, texto, STORE_NAME);
+              if (resultado === "error") {
+                mostrarMensajePublicacion("No se pudo compartir. Probá compartir cada placa por separado.");
+              }
+            })
+          );
+        } else if (puedeCompartir()) {
+          files.forEach((file, i) => {
+            pubAccionesCompartir?.appendChild(
+              crearBoton(`Compartir placa ${i + 1}`, i === 0, async () => {
+                const resultado = await compartirArchivos([file], texto, STORE_NAME);
+                if (resultado === "error") {
+                  mostrarMensajePublicacion(`No se pudo compartir la placa ${i + 1}.`);
+                }
+              })
+            );
+          });
+        } else {
+          files.forEach((file, i) => {
+            pubAccionesCompartir?.appendChild(
+              crearBoton(`Guardar placa ${i + 1}`, i === 0, () => descargarArchivo(file))
+            );
+          });
+        }
+      }
+
+      pubCopiarTexto?.addEventListener("click", async () => {
+        if (!pubTexto || !pubCopiarTexto) return;
+        const copiado = await copiarTexto(pubTexto.value);
+        const textoOriginal = pubCopiarTexto.textContent;
+        pubCopiarTexto.textContent = copiado ? "¡Copiado!" : "No se pudo copiar";
+        setTimeout(() => {
+          if (pubCopiarTexto) pubCopiarTexto.textContent = textoOriginal;
+        }, 1800);
+      });
+
+      btnPreparar?.addEventListener("click", async () => {
+        const productos = leerProductosSeleccionados();
+        if (productos.length === 0) return;
+
+        revocarObjectUrls();
+        if (pubTabs) pubTabs.hidden = true;
+        if (pubPreviewImg) pubPreviewImg.hidden = true;
+        if (pubAccionesCompartir) pubAccionesCompartir.innerHTML = "";
+        if (pubEstado) {
+          pubEstado.hidden = false;
+          pubEstado.textContent = "Generando…";
+        }
+        if (pubTexto) {
+          pubTexto.value = buildSuggestedText(productos, {
+            titulo: PUBLICATION_TITLE,
+            fraseFinal: PUBLICATION_CLOSING,
+            hashtags: PUBLICATION_HASHTAGS,
+          });
+        }
+
+        abrirModal();
+
+        const grupos = planPlacas(productos);
+
+        try {
+          const blobs: Blob[] = [];
+          // Secuencial (no Promise.all): evita mantener varios canvases/fotos
+          // decodificadas en memoria al mismo tiempo (importa en gama media).
+          for (const grupo of grupos) {
+            blobs.push(await generarPlaca(grupo, branding));
+          }
+
+          objectUrls = blobs.map((blob) => URL.createObjectURL(blob));
+
+          if (pubEstado) pubEstado.hidden = true;
+          if (grupos.length > 1 && pubTabs) pubTabs.hidden = false;
+          mostrarPlaca(0);
+
+          const archivos = crearArchivos(blobs);
+          renderAccionesCompartir(archivos, pubTexto?.value ?? "");
+        } catch (err) {
+          if (pubEstado) {
+            pubEstado.hidden = false;
+            pubEstado.textContent =
+              "No se pudo generar la publicación: " + (err instanceof Error ? err.message : String(err));
+          }
+        }
+      });
+
+      pubTabs?.querySelectorAll<HTMLButtonElement>(".pub-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const indice = Number(tab.dataset.placa ?? "0");
+          if (objectUrls[indice]) mostrarPlaca(indice);
         });
       });
     </script>
