@@ -31,10 +31,25 @@ export function calcularTotalesPorMoneda(items: CartItem[]): TotalPorMoneda[] {
   }));
 }
 
-export function buildWhatsAppMessage(items: CartItem[]): string {
-  const lineas = items.map(
-    (item) => `- ${item.cantidad} x ${item.nombre} — ${formatMoney(item.precio, item.moneda)} c/u`
-  );
+export type StockPorId = Map<string, number> | Record<string, number>;
+
+function stockDisponiblePara(id: string, stockPorId?: StockPorId): number | undefined {
+  if (!stockPorId) return undefined;
+  return stockPorId instanceof Map ? stockPorId.get(id) : stockPorId[id];
+}
+
+export function buildWhatsAppMessage(items: CartItem[], stockPorId?: StockPorId): string {
+  const lineas = items.flatMap((item) => {
+    const linea = `- ${item.cantidad} x ${item.nombre} — ${formatMoney(item.precio, item.moneda)} c/u`;
+    const disponible = stockDisponiblePara(item.id, stockPorId);
+
+    if (disponible === undefined || item.cantidad <= disponible) {
+      return [linea];
+    }
+
+    const faltan = item.cantidad - disponible;
+    return [linea, `  ⚠ Stock disponible: ${disponible} — faltan ${faltan} unidades`];
+  });
 
   const totales = calcularTotalesPorMoneda(items);
   const lineasTotal = totales.map(({ moneda, total }) => {

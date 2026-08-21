@@ -394,10 +394,40 @@ const categoriasPresentes = CATEGORIES.filter((cat) =>
         if (btn.dataset.accion === "eliminar") eliminarDelCarrito(id);
       });
 
-      cartWhatsapp?.addEventListener("click", () => {
+      async function obtenerStockDisponible(items: CartItem[]): Promise<Record<string, number> | undefined> {
+        try {
+          const response = await fetch("/api/pedido", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: items.map((item) => ({ id: item.id, cantidad: item.cantidad })),
+            }),
+          });
+          if (!response.ok) return undefined;
+          const data = await response.json();
+          const porId: Record<string, number> = {};
+          for (const { id, stockDisponible } of data.items ?? []) {
+            porId[id] = stockDisponible;
+          }
+          return porId;
+        } catch {
+          return undefined;
+        }
+      }
+
+      cartWhatsapp?.addEventListener("click", async () => {
         if (carrito.length === 0) return;
-        const mensaje = buildWhatsAppMessage(carrito);
-        window.open(buildWhatsAppUrl(WHATSAPP_PHONE, mensaje), "_blank", "noopener");
+        // Se abre la ventana ya (sync con el click) para que Safari/iOS no bloquee el popup
+        // cuando recién después del fetch sabemos la URL final.
+        const ventana = window.open("", "_blank");
+        const stockPorId = await obtenerStockDisponible(carrito);
+        const mensaje = buildWhatsAppMessage(carrito, stockPorId);
+        const url = buildWhatsAppUrl(WHATSAPP_PHONE, mensaje);
+        if (ventana) {
+          ventana.location.href = url;
+        } else {
+          window.open(url, "_blank", "noopener");
+        }
       });
 
       cartVaciar?.addEventListener("click", () => {

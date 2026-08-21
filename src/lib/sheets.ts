@@ -10,6 +10,7 @@ export interface CatalogProduct {
   fotoUrl: string;
   estado: StockStatus;
   moneda: Currency;
+  stock: number;
 }
 
 const COLUMNS = ["id", "producto", "precio", "categoria", "stock", "fotoUrl", "activo", "moneda"] as const;
@@ -40,15 +41,17 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
     .filter((record) => record.activo.toLowerCase() === "sí" || record.activo.toLowerCase() === "si")
     .map((record) => {
       const monedaRaw = record.moneda.toUpperCase();
+      const stock = Number(record.stock) || 0;
       return {
         id: record.id,
         producto: record.producto,
         precio: Number(record.precio) || 0,
         categoria: record.categoria,
         fotoUrl: record.fotoUrl,
-        estado: getStockStatus(Number(record.stock) || 0),
+        estado: getStockStatus(stock),
         // Productos viejos no tienen esta columna (o vino invalida): ARS.
         moneda: isValidCurrency(monedaRaw) ? monedaRaw : "ARS",
+        stock,
       };
     });
 }
