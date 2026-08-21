@@ -6,8 +6,25 @@ export interface Branding {
   brandColor: string;
 }
 
+// Lleva el id del producto (no solo el nombre) para que quien la capture
+// pueda ofrecer "desmarcar ese producto y reintentar" sin adivinar cuál es.
+export class ErrorCargaFoto extends Error {
+  productoId: string;
+  nombreProducto: string;
+
+  constructor(productoId: string, nombreProducto: string) {
+    super(
+      `No se pudo cargar la foto de "${nombreProducto}". Revisá la imagen o desmarcá ese producto e intentá nuevamente.`
+    );
+    this.name = "ErrorCargaFoto";
+    this.productoId = productoId;
+    this.nombreProducto = nombreProducto;
+  }
+}
+
 const OUTPUT_WIDTH = 1080;
 const OUTPUT_HEIGHT = 1350;
+const REINTENTO_ESPERA_MS = 400;
 
 // Solo para slots chicos (grilla de 2-5 productos): le pedimos a Cloudinary
 // una versión ya redimensionada en vez de bajar la foto de 1024x1280 completa
@@ -21,19 +38,57 @@ function urlMiniatura(fotoUrl: string, ancho: number, alto: number): string {
   return `${fotoUrl.slice(0, inicio)}c_fill,w_${ancho},h_${alto},q_auto,f_auto/${fotoUrl.slice(inicio)}`;
 }
 
-function cargarImagen(url: string, nombreProducto: string): Promise<HTMLImageElement> {
+function cargarImagen(url: string, productoId: string, nombreProducto: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () =>
-      reject(
-        new Error(
-          `No se pudo cargar la foto de "${nombreProducto}". Revisá la imagen o desmarcá ese producto e intentá nuevamente.`
-        )
-      );
+    img.onerror = () => reject(new ErrorCargaFoto(productoId, nombreProducto));
     img.src = url;
   });
+}
+
+function esperar(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Una foto que falla una vez en una red móvil suele andar en el segundo
+// intento; solo un reintento secuencial (nunca en paralelo, para no tener
+// dos imágenes decodificadas en memoria a la vez).
+async function cargarConReintento(
+  url: string,
+  productoId: string,
+  nombreProducto: string
+): Promise<HTMLImageElement> {
+  try {
+    return await cargarImagen(url, productoId, nombreProducto);
+  } catch {
+    await esperar(REINTENTO_ESPERA_MS);
+    return cargarImagen(url, productoId, nombreProducto);
+  }
+}
+
+// Para las miniaturas (grilla de 2-10 productos): si la variante redimensionada
+// por Cloudinary sigue fallando tras el reintento, caemos a la foto original
+// sin transformar -con su propio reintento-, que es la que ya se sabe que
+// carga siempre (es la misma que usa la placa de 1 producto). Todo secuencial:
+// nunca hay más de una foto decodificándose en memoria al mismo tiempo.
+async function cargarFotoMiniatura(
+  producto: PublicationProduct,
+  ancho: number,
+  alto: number
+): Promise<HTMLImageElement> {
+  const urlTransformada = urlMiniatura(producto.fotoUrl, ancho, alto);
+
+  if (urlTransformada === producto.fotoUrl) {
+    return cargarConReintento(urlTransformada, producto.id, producto.producto);
+  }
+
+  try {
+    return await cargarConReintento(urlTransformada, producto.id, producto.producto);
+  } catch {
+    return cargarConReintento(producto.fotoUrl, producto.id, producto.producto);
+  }
 }
 
 // Dibuja como "object-fit: cover" (Canvas no lo tiene nativo).
@@ -134,7 +189,7 @@ async function generarPlacaUnica(producto: PublicationProduct, branding: Brandin
   ctx.fillStyle = "#111";
   ctx.fillRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
-  const img = await cargarImagen(producto.fotoUrl, producto.producto);
+  const img = await cargarConReintento(producto.fotoUrl, producto.id, producto.producto);
   dibujarCover(ctx, img, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
   const gradiente = ctx.createLinearGradient(0, OUTPUT_HEIGHT * 0.5, 0, OUTPUT_HEIGHT);
@@ -199,10 +254,7 @@ async function generarPlacaLista(productos: PublicationProduct[], branding: Bran
     }
 
     const fotoY = yFila + (altoFila - fotoLado) / 2;
-    const img = await cargarImagen(
-      urlMiniatura(producto.fotoUrl, fotoLado * 2, fotoLado * 2),
-      producto.producto
-    );
+    const img = await cargarFotoMiniatura(producto, fotoLado * 2, fotoLado * 2);
 
     ctx.save();
     ctx.beginPath();

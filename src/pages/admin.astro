@@ -869,7 +869,7 @@ try {
         MAX_PRODUCTOS_PUBLICACION,
         type PublicationProduct,
       } from "../lib/publicationPlan";
-      import { generarPlaca, type Branding } from "../lib/canvasComposer";
+      import { generarPlaca, ErrorCargaFoto, type Branding } from "../lib/canvasComposer";
       import {
         crearArchivos,
         puedeCompartir,
@@ -1085,9 +1085,44 @@ try {
         }, 1800);
       });
 
-      btnPreparar?.addEventListener("click", async () => {
+      function renderAccionesError(err: unknown) {
+        if (!pubAccionesCompartir) return;
+        pubAccionesCompartir.innerHTML = "";
+
+        function crearBoton(etiqueta: string, primario: boolean, onClick: () => void): HTMLButtonElement {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = etiqueta;
+          btn.className = `pub-btn ${primario ? "pub-btn-primario" : "pub-btn-secundario"}`;
+          btn.addEventListener("click", onClick);
+          return btn;
+        }
+
+        if (err instanceof ErrorCargaFoto) {
+          pubAccionesCompartir.appendChild(
+            crearBoton(`Desmarcar "${err.nombreProducto}" y reintentar`, true, () => {
+              const chk = document.querySelector<HTMLInputElement>(
+                `.chk-publicacion[data-id="${err.productoId}"]`
+              );
+              if (chk) chk.checked = false;
+              actualizarBarra();
+              prepararPublicacion();
+            })
+          );
+        }
+
+        pubAccionesCompartir.appendChild(
+          crearBoton("Volver a la selección", !(err instanceof ErrorCargaFoto), cerrarModal)
+        );
+      }
+
+      async function prepararPublicacion() {
         const productos = leerProductosSeleccionados();
-        if (productos.length === 0) return;
+        if (productos.length === 0) {
+          cerrarModal();
+          mostrarMensajePublicacion("No quedan productos seleccionados.");
+          return;
+        }
 
         revocarObjectUrls();
         if (pubTabs) pubTabs.hidden = true;
@@ -1131,8 +1166,11 @@ try {
             pubEstado.textContent =
               "No se pudo generar la publicación: " + (err instanceof Error ? err.message : String(err));
           }
+          renderAccionesError(err);
         }
-      });
+      }
+
+      btnPreparar?.addEventListener("click", prepararPublicacion);
 
       pubTabs?.querySelectorAll<HTMLButtonElement>(".pub-tab").forEach((tab) => {
         tab.addEventListener("click", () => {
