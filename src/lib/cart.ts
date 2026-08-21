@@ -48,7 +48,8 @@ export function buildWhatsAppMessage(items: CartItem[], stockPorId?: StockPorId)
     }
 
     const faltan = item.cantidad - disponible;
-    return [linea, `  ⚠ Stock disponible: ${disponible} — faltan ${faltan} unidades`];
+    const unidad = faltan === 1 ? "unidad" : "unidades";
+    return [linea, `  ⚠ Stock disponible: ${disponible} — faltan ${faltan} ${unidad}`];
   });
 
   const totales = calcularTotalesPorMoneda(items);

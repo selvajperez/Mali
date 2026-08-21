@@ -100,6 +100,13 @@ test("sin mapa de stock no agrega advertencias (compatibilidad)", () => {
   assert.doesNotMatch(mensaje, /⚠/);
 });
 
+test("usa singular cuando falta exactamente una unidad", () => {
+  const carrito = [item({ id: "MUT001", nombre: "Gato Yogui", cantidad: 2 })];
+  const mensaje = buildWhatsAppMessage(carrito, { MUT001: 1 });
+  assert.match(mensaje, /⚠ Stock disponible: 1 — faltan 1 unidad$/m);
+  assert.doesNotMatch(mensaje, /unidades/);
+});
+
 test("contarUnidades suma todas las cantidades del carrito", () => {
   const carrito = [item({ cantidad: 2 }), item({ id: "B", cantidad: 3 })];
   assert.equal(contarUnidades(carrito), 5);
