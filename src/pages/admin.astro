@@ -5,8 +5,14 @@ import { listAllProducts } from "../lib/sheetsWrite";
 import PublicationModal from "../components/PublicationModal.astro";
 import { STORE_NAME, BRAND_COLOR } from "../lib/storeConfig";
 
-const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || "srxrmckc";
-const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET || "mute-products";
+const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
+const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+if (!cloudName || !uploadPreset) {
+  throw new Error(
+    "Faltan las variables de entorno PUBLIC_CLOUDINARY_CLOUD_NAME y/o PUBLIC_CLOUDINARY_UPLOAD_PRESET."
+  );
+}
 
 let products: Awaited<ReturnType<typeof listAllProducts>> = [];
 let listError: string | null = null;
