@@ -52,6 +52,12 @@ function slugify(texto) {
     .slice(0, 90);
 }
 
+// Convención: todo repo de tienda lleva el prefijo "mute-" para no
+// confundirse nunca con el nombre real de un negocio de un cliente.
+function conPrefijoMute(s) {
+  return s.toLowerCase().startsWith("mute-") ? s : `mute-${s}`;
+}
+
 function oscurecer(hex, factor = 0.2) {
   const n = parseInt(hex.slice(1), 16);
   const canal = (shift) => Math.round((((n >> shift) & 255) * (1 - factor)));
@@ -225,7 +231,8 @@ async function main() {
   });
 
   const slug = await resolverCampo("STORE_SLUG", "Slug / nombre del repositorio", {
-    default: slugify(nombre),
+    default: conPrefijoMute(slugify(nombre)),
+    transformar: (v) => (v ? conPrefijoMute(v) : conPrefijoMute(slugify(nombre))),
     validar: (v) =>
       /^[A-Za-z0-9._-]{1,100}$/.test(v)
         ? null
