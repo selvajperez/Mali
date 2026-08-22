@@ -7,7 +7,7 @@
 
 import { createInterface } from "node:readline/promises";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, appendFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -391,58 +391,11 @@ async function main() {
     );
   }
 
-  async function personalizarRepoNuevo(creadoViaGenerate) {
-    // --- Obtener el contenido a un directorio temporal (nunca tocamos el template) ---
-    const tmpDir = mkdtempSync(path.join(tmpdir(), "mute-store-"));
-    const cloneUrlNuevo = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
-
-    if (creadoViaGenerate) {
-      // "/generate" devuelve 201 antes de que GitHub termine de copiar el
-      // contenido del template: un clone inmediato puede "funcionar" pero
-      // traer el repo todavía vacío. Reintentamos hasta ver el archivo que
-      // sabemos que tiene que estar, no solo hasta que el clone no tire error.
-      console.log("Clonando el repositorio nuevo (puede tardar unos segundos mientras GitHub termina de generarlo)...");
-      let listo = false;
-      for (let intento = 1; intento <= 10 && !listo; intento++) {
-        rmSync(tmpDir, { recursive: true, force: true });
-        try {
-          sh("git", ["clone", "--depth", "1", cloneUrlNuevo, tmpDir], { secrets: [token] });
-          listo = existsSync(path.join(tmpDir, "src/lib/storeConfig.ts"));
-        } catch {
-          listo = false;
-        }
-        if (!listo) {
-          if (intento === 10) {
-            throw new Error(
-              "El repositorio se creó pero, después de varios intentos, GitHub todavía no terminó de copiar el contenido del template. Esperá un momento y volvé a intentar la personalización a mano."
-            );
-          }
-          await new Promise((r) => setTimeout(r, 2000));
-        }
-      }
-    } else {
-      // Fallback sin "/generate": el repo nuevo está vacío. Clonamos el
-      // CONTENIDO del template, le sacamos el historial de git y apuntamos
-      // un remote nuevo hacia el repo recién creado.
-      const cloneUrlTemplate = `https://x-access-token:${token}@github.com/${templateOwner}/${templateRepo}.git`;
-      console.log("Clonando el contenido del template para copiarlo al repositorio nuevo (fallback sin 'generate')...");
-      sh("git", ["clone", "--depth", "1", cloneUrlTemplate, tmpDir], { secrets: [token] });
-      rmSync(path.join(tmpDir, ".git"), { recursive: true, force: true });
-      sh("git", ["-C", tmpDir, "init", "-b", "main"], { secrets: [token] });
-      sh("git", ["-C", tmpDir, "remote", "add", "origin", cloneUrlNuevo], { secrets: [token] });
-    }
-
-    // Guardia de seguridad: origin tiene que apuntar al repo NUEVO, jamás al template.
-    // (Redactamos el token: esta URL lo lleva embebido en el userinfo.)
-    const remoteClonado = sh("git", ["-C", tmpDir, "remote", "get-url", "origin"], { secrets: [token] });
-    const parsedClonado = parseGitHubRemote(remoteClonado);
-    if (parsedClonado.owner === templateOwner && parsedClonado.repo === templateRepo) {
-      throw new Error("Guardia de seguridad: el clon apunta al repositorio template. Abortando sin commitear nada.");
-    }
-
-    // --- Aplicar los cambios SOLO en el clon del repo nuevo ---
-    const storeConfigPath = path.join(tmpDir, "src/lib/storeConfig.ts");
-    let storeConfig = readFileSync(storeConfigPath, "utf8");
+  // Aplica todos los parámetros al texto de storeConfig.ts. Se usa igual
+  // para el camino de la API de contenido y para el fallback por git, así
+  // no se duplica la lista de setConst/setCategories en dos lugares.
+  function personalizarStoreConfigTexto(storeConfigTexto) {
+    let storeConfig = storeConfigTexto;
     storeConfig = setConst(storeConfig, "STORE_NAME", nombre);
     storeConfig = setConst(storeConfig, "BRAND_COLOR", color);
     storeConfig = setConst(storeConfig, "BRAND_COLOR_DARK", colorOscuro);
@@ -450,77 +403,137 @@ async function main() {
     storeConfig = setConst(storeConfig, "WHATSAPP_PHONE", whatsapp);
     storeConfig = setConst(storeConfig, "INSTAGRAM_URL", instagram);
     storeConfig = setConst(storeConfig, "DEFAULT_CURRENCY", moneda, "Currency");
-    storeConfig = setCategories(storeConfig, categorias);
-    writeFileSync(storeConfigPath, storeConfig);
+    return setCategories(storeConfig, categorias);
+  }
+
+  function readmeDeLaTienda() {
+    return generarStoreReadme({ nombre, templateOwner, templateRepo, color, colorOscuro, whatsapp, instagram, logo, categorias, moneda });
+  }
+
+  async function personalizarRepoNuevo(creadoViaGenerate) {
+    if (creadoViaGenerate) {
+      // "/generate" ya pobló el repo nuevo: aplicamos los 3 archivos vía la
+      // API de contenido de GitHub (no necesita git clone/push, así que
+      // funciona igual desde cualquier máquina o entorno restringido de red).
+      await personalizarViaContentsApi();
+      return;
+    }
+
+    // Fallback (poco frecuente hoy: los classic PAT sí soportan "/generate"):
+    // el repo nuevo quedó vacío, así que hace falta copiar el árbol COMPLETO
+    // del template, no solo 3 archivos. Eso sí requiere git (clonar el
+    // template + push al repo nuevo); si se corre en un entorno que
+    // restringe git a repos ya autorizados, este camino puede fallar — para
+    // el caso común (creadoViaGenerate = true) eso ya no aplica.
+    const tmpDir = mkdtempSync(path.join(tmpdir(), "mute-store-"));
+    const cloneUrlNuevo = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
+    const cloneUrlTemplate = `https://x-access-token:${token}@github.com/${templateOwner}/${templateRepo}.git`;
+    console.log("Clonando el contenido del template para copiarlo al repositorio nuevo (fallback sin 'generate')...");
+    sh("git", ["clone", "--depth", "1", cloneUrlTemplate, tmpDir], { secrets: [token] });
+    rmSync(path.join(tmpDir, ".git"), { recursive: true, force: true });
+    sh("git", ["-C", tmpDir, "init", "-b", "main"], { secrets: [token] });
+    sh("git", ["-C", tmpDir, "remote", "add", "origin", cloneUrlNuevo], { secrets: [token] });
+
+    // Guardia de seguridad: origin tiene que apuntar al repo NUEVO, jamás al template.
+    const remoteClonado = sh("git", ["-C", tmpDir, "remote", "get-url", "origin"], { secrets: [token] });
+    const parsedClonado = parseGitHubRemote(remoteClonado);
+    if (parsedClonado.owner === templateOwner && parsedClonado.repo === templateRepo) {
+      throw new Error("Guardia de seguridad: el clon apunta al repositorio template. Abortando sin commitear nada.");
+    }
+
+    const storeConfigPath = path.join(tmpDir, "src/lib/storeConfig.ts");
+    writeFileSync(storeConfigPath, personalizarStoreConfigTexto(readFileSync(storeConfigPath, "utf8")));
 
     const packageJsonPath = path.join(tmpDir, "package.json");
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
     packageJson.name = slug;
     writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
 
-    const readmePath = path.join(tmpDir, "README.md");
-    writeFileSync(
-      readmePath,
-      generarStoreReadme({
-        nombre,
-        templateOwner,
-        templateRepo,
-        color,
-        colorOscuro,
-        whatsapp,
-        instagram,
-        logo,
-        categorias,
-        moneda,
-      })
-    );
+    writeFileSync(path.join(tmpDir, "README.md"), readmeDeLaTienda());
 
-    // --- Commit + push, exclusivamente en el clon del repo nuevo ---
-    if (creadoViaGenerate) {
-      // El repo ya tenía el resto del contenido con su propio historial:
-      // solo commiteamos los 3 archivos que tocamos.
-      sh("git", ["-C", tmpDir, "add", "src/lib/storeConfig.ts", "package.json", "README.md"], {
-        secrets: [token],
-      });
-      sh(
-        "git",
-        [
-          "-C",
-          tmpDir,
-          "-c",
-          "user.email=create-store@local",
-          "-c",
-          "user.name=MUTE create-store",
-          "commit",
-          "-m",
-          `Configurar tienda: ${nombre}`,
-        ],
-        { secrets: [token] }
-      );
-      sh("git", ["-C", tmpDir, "push", "origin", "HEAD"], { secrets: [token] });
-    } else {
-      // Repo vacío: el commit inicial tiene que llevar TODO el árbol del
-      // template (no solo los 3 archivos tocados), y el push crea "main".
-      sh("git", ["-C", tmpDir, "add", "-A"], { secrets: [token] });
-      sh(
-        "git",
-        [
-          "-C",
-          tmpDir,
-          "-c",
-          "user.email=create-store@local",
-          "-c",
-          "user.name=MUTE create-store",
-          "commit",
-          "-m",
-          `Tienda inicial: ${nombre} (desde ${templateOwner}/${templateRepo})`,
-        ],
-        { secrets: [token] }
-      );
-      sh("git", ["-C", tmpDir, "push", "origin", "HEAD:main"], { secrets: [token] });
-    }
+    // Repo vacío: el commit inicial lleva TODO el árbol del template, y el
+    // push crea la rama "main".
+    sh("git", ["-C", tmpDir, "add", "-A"], { secrets: [token] });
+    sh(
+      "git",
+      [
+        "-C",
+        tmpDir,
+        "-c",
+        "user.email=create-store@local",
+        "-c",
+        "user.name=MUTE create-store",
+        "commit",
+        "-m",
+        `Tienda inicial: ${nombre} (desde ${templateOwner}/${templateRepo})`,
+      ],
+      { secrets: [token] }
+    );
+    sh("git", ["-C", tmpDir, "push", "origin", "HEAD:main"], { secrets: [token] });
 
     rmSync(tmpDir, { recursive: true, force: true });
+  }
+
+  async function personalizarViaContentsApi() {
+    // Guardia de seguridad: nunca escribir en el propio template.
+    if (slug === templateRepo) {
+      throw new Error("Guardia de seguridad: el slug coincide con el repo template. Abortando sin escribir nada.");
+    }
+
+    // "/generate" devuelve 201 antes de que GitHub termine de copiar el
+    // contenido del template: leer el archivo de inmediato puede dar 404.
+    // Reintentamos hasta verlo, no hace falta clonar nada para esto.
+    console.log("Esperando a que GitHub termine de generar el contenido del repositorio nuevo...");
+    let storeConfigFile = null;
+    for (let intento = 1; intento <= 10 && !storeConfigFile; intento++) {
+      storeConfigFile = await leerArchivoDelRepo(slug, "src/lib/storeConfig.ts");
+      if (!storeConfigFile) {
+        if (intento === 10) {
+          throw new Error(
+            "El repositorio se creó pero, después de varios intentos, GitHub todavía no terminó de copiar el contenido del template. Esperá un momento y volvé a intentar."
+          );
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+
+    const storeConfigNuevo = personalizarStoreConfigTexto(storeConfigFile.content);
+    await escribirArchivoEnRepo(slug, "src/lib/storeConfig.ts", storeConfigNuevo, storeConfigFile.sha, `Configurar tienda: ${nombre}`);
+
+    const packageJsonFile = await leerArchivoDelRepo(slug, "package.json");
+    const packageJson = JSON.parse(packageJsonFile.content);
+    packageJson.name = slug;
+    await escribirArchivoEnRepo(
+      slug,
+      "package.json",
+      JSON.stringify(packageJson, null, 2) + "\n",
+      packageJsonFile.sha,
+      `Configurar tienda: ${nombre}`
+    );
+
+    const readmeFile = await leerArchivoDelRepo(slug, "README.md");
+    await escribirArchivoEnRepo(slug, "README.md", readmeDeLaTienda(), readmeFile.sha, `Configurar tienda: ${nombre}`);
+  }
+
+  async function leerArchivoDelRepo(repo, filePath) {
+    const res = await githubApi(token, `/repos/${templateOwner}/${repo}/contents/${filePath}`);
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new Error(`No se pudo leer "${filePath}" de ${templateOwner}/${repo} (HTTP ${res.status}): ${await res.text()}`);
+    }
+    const json = await res.json();
+    return { content: Buffer.from(json.content, "base64").toString("utf8"), sha: json.sha };
+  }
+
+  async function escribirArchivoEnRepo(repo, filePath, contenido, sha, mensaje) {
+    const res = await githubApi(token, `/repos/${templateOwner}/${repo}/contents/${filePath}`, {
+      method: "PUT",
+      body: { message: mensaje, content: Buffer.from(contenido, "utf8").toString("base64"), sha },
+    });
+    if (!res.ok) {
+      throw new Error(`No se pudo escribir "${filePath}" en ${templateOwner}/${repo} (HTTP ${res.status}): ${await res.text()}`);
+    }
+    return res.json();
   }
 
   // --- Resumen final ---
