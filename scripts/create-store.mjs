@@ -337,18 +337,46 @@ async function main() {
       include_all_branches: false,
     },
   });
-  if (generarRes.status !== 201) {
+
+  let nuevoRepo;
+  let creadoViaGenerate = true;
+
+  if (generarRes.status === 201) {
+    nuevoRepo = await generarRes.json();
+  } else if (generarRes.status === 403) {
+    // Algunos tokens (p.ej. fine-grained PAT, aunque tengan Administration +
+    // Contents en "All repositories") no tienen acceso al endpoint
+    // "generate" — es una limitación conocida de la API de GitHub, no un
+    // permiso que falte configurar. Fallback: creamos un repo vacío y
+    // copiamos el contenido del template nosotros mismos vía git.
+    console.log('El endpoint "generate" no está disponible para este token (HTTP 403). Usando fallback: crear repo vacío + copiar el template vía git...');
+    creadoViaGenerate = false;
+
+    const ownerInfoRes = await githubApi(token, `/users/${templateOwner}`);
+    const ownerInfo = ownerInfoRes.ok ? await ownerInfoRes.json() : null;
+    const crearRepoPath = ownerInfo?.type === "Organization" ? `/orgs/${templateOwner}/repos` : "/user/repos";
+
+    const crearRes = await githubApi(token, crearRepoPath, {
+      method: "POST",
+      body: { name: slug, description: `Tienda MUTE: ${nombre}`, private: true },
+    });
+    if (crearRes.status !== 201) {
+      const cuerpo = await crearRes.text();
+      throw new Error(`No se pudo crear el repositorio (HTTP ${crearRes.status}): ${cuerpo}`);
+    }
+    nuevoRepo = await crearRes.json();
+  } else {
     const cuerpo = await generarRes.text();
     throw new Error(`No se pudo crear el repositorio (HTTP ${generarRes.status}): ${cuerpo}`);
   }
-  const nuevoRepo = await generarRes.json();
+
   console.log(`Repositorio creado: ${nuevoRepo.html_url}`);
 
   // A partir de acá el repo YA existe en GitHub. Si algo de lo que sigue
   // falla, el catch de abajo deja bien claro que hay que revisar/borrar
   // ese repo a mano en vez de perder ese dato en un error genérico.
   try {
-    await personalizarRepoNuevo();
+    await personalizarRepoNuevo(creadoViaGenerate);
   } catch (err) {
     throw new Error(
       `El repositorio ya se creó en ${nuevoRepo.html_url}, pero falló la personalización: ${err.message}\n` +
@@ -356,24 +384,38 @@ async function main() {
     );
   }
 
-  async function personalizarRepoNuevo() {
-    // --- Clonar el repo NUEVO a un directorio temporal (nunca tocamos el template) ---
+  async function personalizarRepoNuevo(creadoViaGenerate) {
+    // --- Obtener el contenido a un directorio temporal (nunca tocamos el template) ---
     const tmpDir = mkdtempSync(path.join(tmpdir(), "mute-store-"));
-    const cloneUrl = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
+    const cloneUrlNuevo = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
 
-    console.log("Clonando el repositorio nuevo (puede tardar unos segundos mientras GitHub termina de generarlo)...");
-    let clonado = false;
-    for (let intento = 1; intento <= 6 && !clonado; intento++) {
-      try {
-        sh("git", ["clone", "--depth", "1", cloneUrl, tmpDir], { secrets: [token] });
-        clonado = true;
-      } catch (err) {
-        if (intento === 6) throw err;
-        await new Promise((r) => setTimeout(r, 2000));
+    if (creadoViaGenerate) {
+      // "/generate" ya pobló el repo nuevo con el contenido del template:
+      // alcanza con clonarlo directamente.
+      console.log("Clonando el repositorio nuevo (puede tardar unos segundos mientras GitHub termina de generarlo)...");
+      let clonado = false;
+      for (let intento = 1; intento <= 6 && !clonado; intento++) {
+        try {
+          sh("git", ["clone", "--depth", "1", cloneUrlNuevo, tmpDir], { secrets: [token] });
+          clonado = true;
+        } catch (err) {
+          if (intento === 6) throw err;
+          await new Promise((r) => setTimeout(r, 2000));
+        }
       }
+    } else {
+      // Fallback sin "/generate": el repo nuevo está vacío. Clonamos el
+      // CONTENIDO del template, le sacamos el historial de git y apuntamos
+      // un remote nuevo hacia el repo recién creado.
+      const cloneUrlTemplate = `https://x-access-token:${token}@github.com/${templateOwner}/${templateRepo}.git`;
+      console.log("Clonando el contenido del template para copiarlo al repositorio nuevo (fallback sin 'generate')...");
+      sh("git", ["clone", "--depth", "1", cloneUrlTemplate, tmpDir], { secrets: [token] });
+      rmSync(path.join(tmpDir, ".git"), { recursive: true, force: true });
+      sh("git", ["-C", tmpDir, "init", "-b", "main"], { secrets: [token] });
+      sh("git", ["-C", tmpDir, "remote", "add", "origin", cloneUrlNuevo], { secrets: [token] });
     }
 
-    // Guardia de seguridad: el clon tiene que apuntar al repo NUEVO, jamás al template.
+    // Guardia de seguridad: origin tiene que apuntar al repo NUEVO, jamás al template.
     // (Redactamos el token: esta URL lo lleva embebido en el userinfo.)
     const remoteClonado = sh("git", ["-C", tmpDir, "remote", "get-url", "origin"], { secrets: [token] });
     const parsedClonado = parseGitHubRemote(remoteClonado);
@@ -417,25 +459,49 @@ async function main() {
     );
 
     // --- Commit + push, exclusivamente en el clon del repo nuevo ---
-    sh("git", ["-C", tmpDir, "add", "src/lib/storeConfig.ts", "package.json", "README.md"], {
-      secrets: [token],
-    });
-    sh(
-      "git",
-      [
-        "-C",
-        tmpDir,
-        "-c",
-        "user.email=create-store@local",
-        "-c",
-        "user.name=MUTE create-store",
-        "commit",
-        "-m",
-        `Configurar tienda: ${nombre}`,
-      ],
-      { secrets: [token] }
-    );
-    sh("git", ["-C", tmpDir, "push", "origin", "HEAD"], { secrets: [token] });
+    if (creadoViaGenerate) {
+      // El repo ya tenía el resto del contenido con su propio historial:
+      // solo commiteamos los 3 archivos que tocamos.
+      sh("git", ["-C", tmpDir, "add", "src/lib/storeConfig.ts", "package.json", "README.md"], {
+        secrets: [token],
+      });
+      sh(
+        "git",
+        [
+          "-C",
+          tmpDir,
+          "-c",
+          "user.email=create-store@local",
+          "-c",
+          "user.name=MUTE create-store",
+          "commit",
+          "-m",
+          `Configurar tienda: ${nombre}`,
+        ],
+        { secrets: [token] }
+      );
+      sh("git", ["-C", tmpDir, "push", "origin", "HEAD"], { secrets: [token] });
+    } else {
+      // Repo vacío: el commit inicial tiene que llevar TODO el árbol del
+      // template (no solo los 3 archivos tocados), y el push crea "main".
+      sh("git", ["-C", tmpDir, "add", "-A"], { secrets: [token] });
+      sh(
+        "git",
+        [
+          "-C",
+          tmpDir,
+          "-c",
+          "user.email=create-store@local",
+          "-c",
+          "user.name=MUTE create-store",
+          "commit",
+          "-m",
+          `Tienda inicial: ${nombre} (desde ${templateOwner}/${templateRepo})`,
+        ],
+        { secrets: [token] }
+      );
+      sh("git", ["-C", tmpDir, "push", "origin", "HEAD:main"], { secrets: [token] });
+    }
 
     rmSync(tmpDir, { recursive: true, force: true });
   }
