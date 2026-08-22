@@ -7,7 +7,7 @@
 
 import { createInterface } from "node:readline/promises";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, appendFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, appendFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -390,16 +390,26 @@ async function main() {
     const cloneUrlNuevo = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
 
     if (creadoViaGenerate) {
-      // "/generate" ya pobló el repo nuevo con el contenido del template:
-      // alcanza con clonarlo directamente.
+      // "/generate" devuelve 201 antes de que GitHub termine de copiar el
+      // contenido del template: un clone inmediato puede "funcionar" pero
+      // traer el repo todavía vacío. Reintentamos hasta ver el archivo que
+      // sabemos que tiene que estar, no solo hasta que el clone no tire error.
       console.log("Clonando el repositorio nuevo (puede tardar unos segundos mientras GitHub termina de generarlo)...");
-      let clonado = false;
-      for (let intento = 1; intento <= 6 && !clonado; intento++) {
+      let listo = false;
+      for (let intento = 1; intento <= 10 && !listo; intento++) {
+        rmSync(tmpDir, { recursive: true, force: true });
         try {
           sh("git", ["clone", "--depth", "1", cloneUrlNuevo, tmpDir], { secrets: [token] });
-          clonado = true;
-        } catch (err) {
-          if (intento === 6) throw err;
+          listo = existsSync(path.join(tmpDir, "src/lib/storeConfig.ts"));
+        } catch {
+          listo = false;
+        }
+        if (!listo) {
+          if (intento === 10) {
+            throw new Error(
+              "El repositorio se creó pero, después de varios intentos, GitHub todavía no terminó de copiar el contenido del template. Esperá un momento y volvé a intentar la personalización a mano."
+            );
+          }
           await new Promise((r) => setTimeout(r, 2000));
         }
       }
