@@ -7,11 +7,19 @@
 
 import { createInterface } from "node:readline/promises";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 const TEMPLATE_ROOT = process.cwd();
+const NOMBRE_TEMPLATE_ESPERADO = "mute-upload-test";
+
+// Modo no interactivo (GitHub Actions u otro entorno sin TTY): los 8
+// parámetros se leen de variables de entorno en vez de prompts, usando
+// exactamente las mismas funciones de transformar/validar. GitHub Actions
+// siempre define GITHUB_ACTIONS=true; el chequeo de isTTY es un fallback
+// para cualquier otro entorno sin terminal interactiva.
+const modoNoInteractivo = process.env.GITHUB_ACTIONS === "true" || !process.stdin.isTTY;
 
 // `secrets`: strings que nunca deben aparecer en un mensaje de error (p.ej.
 // el token embebido en la URL de clone/push). git a veces repite la URL
@@ -154,31 +162,69 @@ async function askValidado(pregunta, { default: def, validar, transformar } = {}
   }
 }
 
+// Resuelve un parámetro desde el prompt interactivo o, en modo no
+// interactivo, desde la variable de entorno indicada — reutilizando las
+// mismas funciones transformar/validar en los dos casos.
+async function resolverCampo(envVar, pregunta, opts = {}) {
+  if (!modoNoInteractivo) return askValidado(pregunta, opts);
+
+  // "||" (no "??"): un input de GitHub Actions sin completar llega como
+  // string vacío, no como undefined — tiene que activar el default igual
+  // que dejar el prompt interactivo en blanco.
+  const cruda = process.env[envVar] || opts.default || "";
+  const valor = opts.transformar ? opts.transformar(cruda) : cruda;
+  const error = opts.validar ? opts.validar(valor) : null;
+  if (error) throw new Error(`${envVar}="${cruda}" inválido: ${error}`);
+  return valor;
+}
+
+// En GitHub Actions, además de la consola, deja el resumen en la pestaña
+// "Summary" del run (no falla el proceso si no está disponible).
+function escribirResumenActions(markdown) {
+  const ruta = process.env.GITHUB_STEP_SUMMARY;
+  if (!ruta) return;
+  try {
+    appendFileSync(ruta, markdown + "\n");
+  } catch {
+    // no bloquea el resto del script
+  }
+}
+
 async function main() {
-  rl = createInterface({ input: process.stdin, output: process.stdout });
-  console.log("=== Crear nueva tienda MUTE ===\n");
+  if (!modoNoInteractivo) {
+    rl = createInterface({ input: process.stdin, output: process.stdout });
+  }
+  console.log(`=== Crear nueva tienda MUTE ${modoNoInteractivo ? "(modo no interactivo)" : ""} ===\n`);
 
   // --- Pre-requisito: token de GitHub, antes de pedir nada más ---
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     console.error(
       "Falta la variable de entorno GITHUB_TOKEN (personal access token con permiso 'repo').\n" +
-        "Definila y volvé a correr: GITHUB_TOKEN=ghp_xxx npm run create-store"
+        "Local: definila y volvé a correr, ej. GITHUB_TOKEN=ghp_xxx npm run create-store\n" +
+        "GitHub Actions: falta mapear el secret MUTE_GITHUB_TOKEN a GITHUB_TOKEN en el workflow."
     );
     process.exitCode = 1;
-    rl.close();
+    rl?.close();
     return;
   }
 
   const originUrl = sh("git", ["-C", TEMPLATE_ROOT, "remote", "get-url", "origin"]);
   const { owner: templateOwner, repo: templateRepo } = parseGitHubRemote(originUrl);
 
+  if (templateRepo !== NOMBRE_TEMPLATE_ESPERADO) {
+    throw new Error(
+      `Este script está pensado para correr sobre el template "${NOMBRE_TEMPLATE_ESPERADO}", ` +
+        `pero el repo actual es "${templateOwner}/${templateRepo}". Abortando.`
+    );
+  }
+
   // --- Parámetros: solo los acordados ---
-  const nombre = await askValidado("Nombre del comercio", {
+  const nombre = await resolverCampo("STORE_NAME", "Nombre del comercio", {
     validar: (v) => (v ? null : "No puede estar vacío."),
   });
 
-  const slug = await askValidado("Slug / nombre del repositorio", {
+  const slug = await resolverCampo("STORE_SLUG", "Slug / nombre del repositorio", {
     default: slugify(nombre),
     validar: (v) =>
       /^[A-Za-z0-9._-]{1,100}$/.test(v)
@@ -186,34 +232,38 @@ async function main() {
         : "Solo letras, números, guiones y puntos (sin espacios).",
   });
 
-  const color = await askValidado("Color principal (hex)", {
+  const color = await resolverCampo("STORE_COLOR", "Color principal (hex)", {
     default: "#1a7a3c",
     transformar: (v) => (v.startsWith("#") ? v : `#${v}`),
     validar: (v) => (/^#[0-9a-fA-F]{6}$/.test(v) ? null : "Formato esperado: #RRGGBB."),
   });
 
-  const whatsapp = await askValidado("WhatsApp (solo dígitos, formato internacional, ej 5491122334455)", {
-    transformar: (v) => v.replace(/[^\d]/g, ""),
-    validar: (v) => (/^\d{8,15}$/.test(v) ? null : "Deben ser entre 8 y 15 dígitos."),
-  });
+  const whatsapp = await resolverCampo(
+    "STORE_WHATSAPP",
+    "WhatsApp (solo dígitos, formato internacional, ej 5491122334455)",
+    {
+      transformar: (v) => v.replace(/[^\d]/g, ""),
+      validar: (v) => (/^\d{8,15}$/.test(v) ? null : "Deben ser entre 8 y 15 dígitos."),
+    }
+  );
 
-  const instagram = await askValidado("Instagram (URL completa, opcional)", {
+  const instagram = await resolverCampo("STORE_INSTAGRAM", "Instagram (URL completa, opcional)", {
     default: "",
     validar: (v) => (!v || /^https?:\/\//i.test(v) ? null : "Tiene que empezar con http:// o https://, o dejarlo vacío."),
   });
 
-  const logo = await askValidado("URL del logo (opcional)", {
+  const logo = await resolverCampo("STORE_LOGO", "URL del logo (opcional)", {
     default: "",
     validar: (v) => (!v || /^https?:\/\//i.test(v) ? null : "Tiene que empezar con http:// o https://, o dejarlo vacío."),
   });
 
-  const categorias = await askValidado("Categorías del catálogo (separadas por coma)", {
+  const categorias = await resolverCampo("STORE_CATEGORIES", "Categorías del catálogo (separadas por coma)", {
     default: "Hogar, Cocina, Belleza, Tecnología, Accesorios, Textil, Otros",
     transformar: (v) => v.split(",").map((c) => c.trim()).filter(Boolean),
     validar: (v) => (v.length > 0 ? null : "Tiene que haber al menos una categoría."),
   });
 
-  const moneda = await askValidado("Moneda por defecto (ARS/USD)", {
+  const moneda = await resolverCampo("STORE_CURRENCY", "Moneda por defecto (ARS/USD)", {
     default: "ARS",
     transformar: (v) => v.toUpperCase(),
     validar: (v) => (v === "ARS" || v === "USD" ? null : 'Tiene que ser "ARS" o "USD".'),
@@ -233,15 +283,21 @@ async function main() {
   console.log(`Moneda:      ${moneda}`);
   console.log("");
 
-  const confirmacion = await ask(`Se creará la tienda "${nombre}" en el repositorio "${templateOwner}/${slug}" con estos parámetros. ¿Continuar? S/N`, {
-    default: "N",
-  });
-  if (!/^s(i|í)?$/i.test(confirmacion)) {
-    console.log("Cancelado. No se hizo ninguna operación remota.");
+  if (modoNoInteractivo) {
+    console.log(
+      "Modo no interactivo: los parámetros ya fueron validados y confirmados al lanzar el workflow. Continuando automáticamente...\n"
+    );
+  } else {
+    const confirmacion = await ask(`Se creará la tienda "${nombre}" en el repositorio "${templateOwner}/${slug}" con estos parámetros. ¿Continuar? S/N`, {
+      default: "N",
+    });
+    if (!/^s(i|í)?$/i.test(confirmacion)) {
+      console.log("Cancelado. No se hizo ninguna operación remota.");
+      rl.close();
+      return;
+    }
     rl.close();
-    return;
   }
-  rl.close();
 
   // --- Validaciones remotas (antes de crear nada) ---
   console.log("\nVerificando repositorio template y disponibilidad del nombre...");
@@ -286,88 +342,103 @@ async function main() {
     throw new Error(`No se pudo crear el repositorio (HTTP ${generarRes.status}): ${cuerpo}`);
   }
   const nuevoRepo = await generarRes.json();
+  console.log(`Repositorio creado: ${nuevoRepo.html_url}`);
 
-  // --- Clonar el repo NUEVO a un directorio temporal (nunca tocamos el template) ---
-  const tmpDir = mkdtempSync(path.join(tmpdir(), "mute-store-"));
-  const cloneUrl = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
+  // A partir de acá el repo YA existe en GitHub. Si algo de lo que sigue
+  // falla, el catch de abajo deja bien claro que hay que revisar/borrar
+  // ese repo a mano en vez de perder ese dato en un error genérico.
+  try {
+    await personalizarRepoNuevo();
+  } catch (err) {
+    throw new Error(
+      `El repositorio ya se creó en ${nuevoRepo.html_url}, pero falló la personalización: ${err.message}\n` +
+        "Corregilo a mano (cloná ese repo y aplicá los cambios) o borralo desde GitHub y volvé a correr el script."
+    );
+  }
 
-  console.log("Clonando el repositorio nuevo (puede tardar unos segundos mientras GitHub termina de generarlo)...");
-  let clonado = false;
-  for (let intento = 1; intento <= 6 && !clonado; intento++) {
-    try {
-      sh("git", ["clone", "--depth", "1", cloneUrl, tmpDir], { secrets: [token] });
-      clonado = true;
-    } catch (err) {
-      if (intento === 6) throw err;
-      await new Promise((r) => setTimeout(r, 2000));
+  async function personalizarRepoNuevo() {
+    // --- Clonar el repo NUEVO a un directorio temporal (nunca tocamos el template) ---
+    const tmpDir = mkdtempSync(path.join(tmpdir(), "mute-store-"));
+    const cloneUrl = `https://x-access-token:${token}@github.com/${templateOwner}/${slug}.git`;
+
+    console.log("Clonando el repositorio nuevo (puede tardar unos segundos mientras GitHub termina de generarlo)...");
+    let clonado = false;
+    for (let intento = 1; intento <= 6 && !clonado; intento++) {
+      try {
+        sh("git", ["clone", "--depth", "1", cloneUrl, tmpDir], { secrets: [token] });
+        clonado = true;
+      } catch (err) {
+        if (intento === 6) throw err;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
     }
+
+    // Guardia de seguridad: el clon tiene que apuntar al repo NUEVO, jamás al template.
+    // (Redactamos el token: esta URL lo lleva embebido en el userinfo.)
+    const remoteClonado = sh("git", ["-C", tmpDir, "remote", "get-url", "origin"], { secrets: [token] });
+    const parsedClonado = parseGitHubRemote(remoteClonado);
+    if (parsedClonado.owner === templateOwner && parsedClonado.repo === templateRepo) {
+      throw new Error("Guardia de seguridad: el clon apunta al repositorio template. Abortando sin commitear nada.");
+    }
+
+    // --- Aplicar los cambios SOLO en el clon del repo nuevo ---
+    const storeConfigPath = path.join(tmpDir, "src/lib/storeConfig.ts");
+    let storeConfig = readFileSync(storeConfigPath, "utf8");
+    storeConfig = setConst(storeConfig, "STORE_NAME", nombre);
+    storeConfig = setConst(storeConfig, "BRAND_COLOR", color);
+    storeConfig = setConst(storeConfig, "BRAND_COLOR_DARK", colorOscuro);
+    storeConfig = setConst(storeConfig, "STORE_LOGO_URL", logo);
+    storeConfig = setConst(storeConfig, "WHATSAPP_PHONE", whatsapp);
+    storeConfig = setConst(storeConfig, "INSTAGRAM_URL", instagram);
+    storeConfig = setConst(storeConfig, "DEFAULT_CURRENCY", moneda, "Currency");
+    storeConfig = setCategories(storeConfig, categorias);
+    writeFileSync(storeConfigPath, storeConfig);
+
+    const packageJsonPath = path.join(tmpDir, "package.json");
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    packageJson.name = slug;
+    writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
+
+    const readmePath = path.join(tmpDir, "README.md");
+    writeFileSync(
+      readmePath,
+      generarStoreReadme({
+        nombre,
+        templateOwner,
+        templateRepo,
+        color,
+        colorOscuro,
+        whatsapp,
+        instagram,
+        logo,
+        categorias,
+        moneda,
+      })
+    );
+
+    // --- Commit + push, exclusivamente en el clon del repo nuevo ---
+    sh("git", ["-C", tmpDir, "add", "src/lib/storeConfig.ts", "package.json", "README.md"], {
+      secrets: [token],
+    });
+    sh(
+      "git",
+      [
+        "-C",
+        tmpDir,
+        "-c",
+        "user.email=create-store@local",
+        "-c",
+        "user.name=MUTE create-store",
+        "commit",
+        "-m",
+        `Configurar tienda: ${nombre}`,
+      ],
+      { secrets: [token] }
+    );
+    sh("git", ["-C", tmpDir, "push", "origin", "HEAD"], { secrets: [token] });
+
+    rmSync(tmpDir, { recursive: true, force: true });
   }
-
-  // Guardia de seguridad: el clon tiene que apuntar al repo NUEVO, jamás al template.
-  // (Redactamos el token: esta URL lo lleva embebido en el userinfo.)
-  const remoteClonado = sh("git", ["-C", tmpDir, "remote", "get-url", "origin"], { secrets: [token] });
-  const parsedClonado = parseGitHubRemote(remoteClonado);
-  if (parsedClonado.owner === templateOwner && parsedClonado.repo === templateRepo) {
-    throw new Error("Guardia de seguridad: el clon apunta al repositorio template. Abortando sin commitear nada.");
-  }
-
-  // --- Aplicar los cambios SOLO en el clon del repo nuevo ---
-  const storeConfigPath = path.join(tmpDir, "src/lib/storeConfig.ts");
-  let storeConfig = readFileSync(storeConfigPath, "utf8");
-  storeConfig = setConst(storeConfig, "STORE_NAME", nombre);
-  storeConfig = setConst(storeConfig, "BRAND_COLOR", color);
-  storeConfig = setConst(storeConfig, "BRAND_COLOR_DARK", colorOscuro);
-  storeConfig = setConst(storeConfig, "STORE_LOGO_URL", logo);
-  storeConfig = setConst(storeConfig, "WHATSAPP_PHONE", whatsapp);
-  storeConfig = setConst(storeConfig, "INSTAGRAM_URL", instagram);
-  storeConfig = setConst(storeConfig, "DEFAULT_CURRENCY", moneda, "Currency");
-  storeConfig = setCategories(storeConfig, categorias);
-  writeFileSync(storeConfigPath, storeConfig);
-
-  const packageJsonPath = path.join(tmpDir, "package.json");
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-  packageJson.name = slug;
-  writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
-
-  const readmePath = path.join(tmpDir, "README.md");
-  writeFileSync(
-    readmePath,
-    generarStoreReadme({
-      nombre,
-      templateOwner,
-      templateRepo,
-      color,
-      colorOscuro,
-      whatsapp,
-      instagram,
-      logo,
-      categorias,
-      moneda,
-    })
-  );
-
-  // --- Commit + push, exclusivamente en el clon del repo nuevo ---
-  sh("git", ["-C", tmpDir, "add", "src/lib/storeConfig.ts", "package.json", "README.md"], {
-    secrets: [token],
-  });
-  sh(
-    "git",
-    [
-      "-C",
-      tmpDir,
-      "-c",
-      "user.email=create-store@local",
-      "-c",
-      "user.name=MUTE create-store",
-      "commit",
-      "-m",
-      `Configurar tienda: ${nombre}`,
-    ],
-    { secrets: [token] }
-  );
-  sh("git", ["-C", tmpDir, "push", "origin", "HEAD"], { secrets: [token] });
-
-  rmSync(tmpDir, { recursive: true, force: true });
 
   // --- Resumen final ---
   console.log("\n=== Listo ===");
@@ -386,6 +457,32 @@ async function main() {
   console.log("  [ ] Cuenta/preset de Cloudinary");
   console.log("  [ ] Proyecto en Vercel + variables de entorno + deploy");
   console.log("  [ ] Dominio propio (opcional)");
+
+  escribirResumenActions(
+    [
+      "## Tienda creada",
+      "",
+      `- **Nombre:** ${nombre}`,
+      `- **Repositorio:** ${nuevoRepo.html_url}`,
+      "",
+      "### Parámetros aplicados",
+      "",
+      `- Color: ${color} (oscuro: ${colorOscuro})`,
+      `- WhatsApp: ${whatsapp}`,
+      `- Instagram: ${instagram || "(no configurado)"}`,
+      `- Logo: ${logo || "(no configurado)"}`,
+      `- Categorías: ${categorias.join(", ")}`,
+      `- Moneda: ${moneda}`,
+      "",
+      "### Checklist pendiente",
+      "",
+      "- [ ] Google Sheet del catálogo + publicarla como CSV",
+      "- [ ] Credenciales de la Service Account de Google",
+      "- [ ] Cuenta/preset de Cloudinary",
+      "- [ ] Proyecto en Vercel + variables de entorno + deploy",
+      "- [ ] Dominio propio (opcional)",
+    ].join("\n")
+  );
 }
 
 const esEjecucionDirecta = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;

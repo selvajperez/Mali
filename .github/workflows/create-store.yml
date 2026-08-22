@@ -1,0 +1,78 @@
+name: Crear nueva tienda MUTE
+
+# Disparo manual desde la pestaña "Actions" de GitHub. Pide únicamente los
+# parámetros que cambian entre comercios; el resto de storeConfig.ts queda
+# con los defaults de este template. Reutiliza scripts/create-store.mjs
+# (el mismo que se puede correr en modo interactivo desde una PC) en modo
+# no interactivo — sin lógica duplicada.
+on:
+  workflow_dispatch:
+    inputs:
+      store_name:
+        description: "Nombre del comercio"
+        required: true
+        type: string
+      store_slug:
+        description: "Slug / nombre del repo (vacío = se deriva del nombre)"
+        required: false
+        type: string
+      store_color:
+        description: "Color principal (hex)"
+        required: false
+        type: string
+        default: "#1a7a3c"
+      store_whatsapp:
+        description: "WhatsApp (solo dígitos, formato internacional, ej 5491122334455)"
+        required: true
+        type: string
+      store_instagram:
+        description: "Instagram (URL completa, opcional)"
+        required: false
+        type: string
+      store_logo:
+        description: "URL del logo (opcional)"
+        required: false
+        type: string
+      store_categories:
+        description: "Categorías separadas por coma"
+        required: false
+        type: string
+        default: "Hogar, Cocina, Belleza, Tecnología, Accesorios, Textil, Otros"
+      store_currency:
+        description: "Moneda por defecto"
+        required: false
+        type: choice
+        options:
+          - ARS
+          - USD
+        default: ARS
+
+permissions:
+  contents: read
+
+jobs:
+  create-store:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del template
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Crear tienda
+        env:
+          # Secret configurado una sola vez en Settings → Secrets and
+          # variables → Actions. Nunca se imprime ni se guarda en archivos.
+          GITHUB_TOKEN: ${{ secrets.MUTE_GITHUB_TOKEN }}
+          STORE_NAME: ${{ inputs.store_name }}
+          STORE_SLUG: ${{ inputs.store_slug }}
+          STORE_COLOR: ${{ inputs.store_color }}
+          STORE_WHATSAPP: ${{ inputs.store_whatsapp }}
+          STORE_INSTAGRAM: ${{ inputs.store_instagram }}
+          STORE_LOGO: ${{ inputs.store_logo }}
+          STORE_CATEGORIES: ${{ inputs.store_categories }}
+          STORE_CURRENCY: ${{ inputs.store_currency }}
+        run: node scripts/create-store.mjs
