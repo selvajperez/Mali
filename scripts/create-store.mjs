@@ -578,4 +578,4 @@ if (esEjecucionDirecta) {
 
 // Exportadas solo para tests unitarios (tests/createStore.test.ts); no afecta
 // la ejecución normal vía "npm run create-store".
-export { slugify, oscurecer, parseGitHubRemote, setConst, setCategories };
+export { slugify, oscurecer, parseGitHubRemote, setConst, setCategories, generarStoreReadme };
