@@ -3,7 +3,13 @@ import { CATEGORIES } from "../lib/categories";
 import { CURRENCIES, formatMoney } from "../lib/currencies";
 import { listAllProducts } from "../lib/sheetsWrite";
 import PublicationModal from "../components/PublicationModal.astro";
-import { STORE_NAME, BRAND_COLOR } from "../lib/storeConfig";
+import {
+  STORE_NAME,
+  BRAND_COLOR,
+  DEFAULT_CURRENCY,
+  QUICK_ADD_DEFAULT_CATEGORY,
+  QUICK_ADD_DEFAULT_STOCK,
+} from "../lib/storeConfig";
 
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
 const uploadPreset = import.meta.env.PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -39,6 +45,12 @@ try {
     <main>
       <section class="seccion">
         <h2 id="form-titulo">Publicar producto nuevo</h2>
+
+        <div class="modo-carga" role="tablist" aria-label="Modo de carga">
+          <button type="button" id="btn-modo-rapido" class="btn-modo" role="tab">Carga rápida</button>
+          <button type="button" id="btn-modo-completa" class="btn-modo" role="tab">Carga completa</button>
+        </div>
+
         <form id="form-producto">
           <div class="campo" id="campo-foto">
             <label>Foto</label>
@@ -83,14 +95,14 @@ try {
             <input type="number" id="precio" name="precio" min="0" step="1" required />
           </div>
 
-          <div class="campo">
+          <div class="campo" id="campo-moneda">
             <label for="moneda">Moneda</label>
             <select id="moneda" name="moneda" required>
-              {CURRENCIES.map((m) => <option value={m} selected={m === "ARS"}>{m}</option>)}
+              {CURRENCIES.map((m) => <option value={m} selected={m === DEFAULT_CURRENCY}>{m}</option>)}
             </select>
           </div>
 
-          <div class="campo">
+          <div class="campo" id="campo-categoria">
             <label for="categoria">Categoría</label>
             <select id="categoria" name="categoria" required>
               <option value="" disabled selected>Elegí una categoría</option>
@@ -98,7 +110,7 @@ try {
             </select>
           </div>
 
-          <div class="campo">
+          <div class="campo" id="campo-stock">
             <label for="stock">Stock</label>
             <input type="number" id="stock" name="stock" min="0" step="1" required />
           </div>
@@ -446,6 +458,21 @@ try {
         flex: 1;
         padding: 0.5rem;
       }
+      .modo-carga {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .btn-modo {
+        flex: 1;
+        background: #fff;
+        color: #444;
+      }
+      .btn-modo.activo {
+        background: var(--brandColor);
+        color: #fff;
+        border-color: var(--brandColor);
+      }
       #form-producto {
         padding: 1rem;
         border-radius: 12px;
@@ -462,7 +489,10 @@ try {
       }
     </style>
 
-    <script define:vars={{ cloudName, uploadPreset }} is:inline>
+    <script
+      define:vars={{ cloudName, uploadPreset, quickAddDefaultCategory: QUICK_ADD_DEFAULT_CATEGORY, quickAddDefaultStock: QUICK_ADD_DEFAULT_STOCK, defaultCurrency: DEFAULT_CURRENCY }}
+      is:inline
+    >
       const fotoUrlInput = document.getElementById("fotoUrl");
       const preview = document.getElementById("preview");
       const mensaje = document.getElementById("mensaje");
@@ -476,10 +506,46 @@ try {
       const campoCategoria = document.getElementById("categoria");
       const campoStock = document.getElementById("stock");
 
+      // --- Carga rápida vs. Carga completa: mismo formulario, mismo submit,
+      // mismo endpoint. Solo se ocultan Moneda/Categoría/Stock y se les
+      // precarga un valor por defecto (storeConfig.ts); al ocultarlos con el
+      // atributo "hidden" quedan afuera de la validación HTML5, así que no
+      // bloquean el submit aunque sigan "required". ---
+      const btnModoRapido = document.getElementById("btn-modo-rapido");
+      const btnModoCompleta = document.getElementById("btn-modo-completa");
+      const campoMonedaDiv = document.getElementById("campo-moneda");
+      const campoCategoriaDiv = document.getElementById("campo-categoria");
+      const campoStockDiv = document.getElementById("campo-stock");
+
+      let modoActual = "rapido";
+
+      function aplicarModoCarga(modo) {
+        modoActual = modo;
+        const esRapido = modo === "rapido";
+        campoMonedaDiv.hidden = esRapido;
+        campoCategoriaDiv.hidden = esRapido;
+        campoStockDiv.hidden = esRapido;
+        if (esRapido) {
+          campoMoneda.value = defaultCurrency;
+          campoCategoria.value = quickAddDefaultCategory;
+          campoStock.value = quickAddDefaultStock;
+        }
+        btnModoRapido.classList.toggle("activo", esRapido);
+        btnModoCompleta.classList.toggle("activo", !esRapido);
+      }
+
+      btnModoRapido.addEventListener("click", () => aplicarModoCarga("rapido"));
+      btnModoCompleta.addEventListener("click", () => aplicarModoCarga("completa"));
+
+      // Arranca en Carga rápida: es el flujo pensado para publicar parado en
+      // el local/proveedor, sacando la foto y cargando nombre + precio.
+      aplicarModoCarga("rapido");
+
       let editingId = null;
 
       function entrarModoEdicion(datos) {
         editingId = datos.id;
+        aplicarModoCarga("completa");
         formTitulo.textContent = `Editando: ${datos.producto}`;
         form.classList.add("modo-edicion");
         btnPublicar.textContent = "Guardar cambios";
@@ -510,6 +576,7 @@ try {
         preview.hidden = true;
         fotoMensaje.textContent = "";
         fotoMensaje.className = "";
+        aplicarModoCarga("rapido");
       }
 
       btnCancelarEdicion.addEventListener("click", salirModoEdicion);
@@ -815,6 +882,10 @@ try {
           fotoUrlInput.value = "";
           fotoMensaje.textContent = "";
           fotoMensaje.className = "";
+          // form.reset() vuelve moneda/categoría/stock a su valor HTML por
+          // defecto (los limpia); en Carga rápida hay que reponerles el
+          // valor automático para que la próxima carga funcione igual.
+          aplicarModoCarga(modoActual);
         } catch (err) {
           mensaje.textContent = (editando ? "No se pudo guardar: " : "No se pudo publicar: ") + err.message;
           mensaje.className = "error";

@@ -61,6 +61,11 @@ export const PUBLICATION_HASHTAGS: string[] = [];
 // Prefijo de los ids generados al publicar (ej. "MUT123456").
 export const PRODUCT_ID_PREFIX = "MUT";
 
+// Valores automáticos del modo "Carga rápida" del admin (categoría y stock;
+// la moneda usa DEFAULT_CURRENCY de arriba). Cada tienda define los suyos.
+export const QUICK_ADD_DEFAULT_CATEGORY: (typeof CATEGORIES)[number] = "Otros";
+export const QUICK_ADD_DEFAULT_STOCK = 1;
+
 // --- Medios de pago ---
 // Solo informativos: no hay cobro online ni pasarela de pago. Se muestran en
 // el catálogo los que tengan activo:true; el resto queda listo para activar
