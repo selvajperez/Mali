@@ -54,7 +54,7 @@ const puedeAgregar = product.estado !== "Agotado";
     border: 1px solid #e5e5e5;
     border-radius: 14px;
     overflow: hidden;
-    background: #fff;
+    background: var(--surface-color, #fff);
     display: flex;
     flex-direction: column;
   }
@@ -103,7 +103,7 @@ const puedeAgregar = product.estado !== "Agotado";
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #888;
+    color: var(--secondary-text-color, #888);
   }
   .info h3 {
     margin: 0;

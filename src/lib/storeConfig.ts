@@ -23,6 +23,13 @@ export const FONT_BODY = "system-ui, sans-serif";
 
 export const BACKGROUND_COLOR = "#fafafa";
 
+// Acentos secundarios opcionales (etiquetas/chips), superficie de tarjetas y
+// texto/bordes secundarios. Defaults = los grises neutros que ya usaba el
+// template — ningún comercio existente cambia visualmente sin tocar esto.
+export const ACCENT_COLOR = "#444444";
+export const SURFACE_COLOR = "#ffffff";
+export const SECONDARY_TEXT_COLOR = "#888888";
+
 // URL de Google Fonts a cargar (opcional). Vacío = no se agrega ningún
 // <link> extra al <head>; se usan las fuentes ya instaladas del sistema.
 export const GOOGLE_FONTS_URL = "";

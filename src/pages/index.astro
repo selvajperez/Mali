@@ -18,6 +18,9 @@ import {
   FONT_BODY,
   BACKGROUND_COLOR,
   GOOGLE_FONTS_URL,
+  ACCENT_COLOR,
+  SURFACE_COLOR,
+  SECONDARY_TEXT_COLOR,
 } from "../lib/storeConfig";
 
 let products: Awaited<ReturnType<typeof getCatalogProducts>> = [];
@@ -122,6 +125,9 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         fontHeading: FONT_HEADING,
         fontBody: FONT_BODY,
         backgroundColor: BACKGROUND_COLOR,
+        accentColor: ACCENT_COLOR,
+        surfaceColor: SURFACE_COLOR,
+        secondaryTextColor: SECONDARY_TEXT_COLOR,
       }}
     >
       * {
@@ -130,6 +136,9 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
       :root {
         --brand-color: var(--brandColor);
         --font-heading: var(--fontHeading);
+        --accent-color: var(--accentColor);
+        --surface-color: var(--surfaceColor);
+        --secondary-text-color: var(--secondaryTextColor);
       }
       body {
         margin: 0;
@@ -220,9 +229,9 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
       }
       .chip {
         flex-shrink: 0;
-        border: 1px solid #ddd;
+        border: 1px solid var(--accentColor);
         background: #fff;
-        color: #444;
+        color: var(--accentColor);
         border-radius: 999px;
         padding: 0.4rem 0.9rem;
         font-size: 0.85rem;
@@ -246,7 +255,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         color: #a11f1f;
       }
       .vacio {
-        color: #666;
+        color: var(--secondaryTextColor);
         text-align: center;
         margin-top: 2rem;
       }
@@ -256,7 +265,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         align-items: center;
         gap: 0.5rem;
         padding: 1.5rem 1rem 2rem;
-        color: #888;
+        color: var(--secondaryTextColor);
       }
       .footer-social {
         display: flex;
@@ -266,7 +275,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         border: none;
         background: none;
         font: inherit;
-        color: #888;
+        color: var(--secondaryTextColor);
         text-decoration: underline;
         font-size: 0.85rem;
         padding: 0.25rem;
