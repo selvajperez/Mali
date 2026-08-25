@@ -21,6 +21,7 @@ import {
   ACCENT_COLOR,
   SURFACE_COLOR,
   SECONDARY_TEXT_COLOR,
+  TEXT_COLOR,
 } from "../lib/storeConfig";
 
 let products: Awaited<ReturnType<typeof getCatalogProducts>> = [];
@@ -128,6 +129,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         accentColor: ACCENT_COLOR,
         surfaceColor: SURFACE_COLOR,
         secondaryTextColor: SECONDARY_TEXT_COLOR,
+        textColor: TEXT_COLOR,
       }}
     >
       * {
@@ -144,7 +146,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         margin: 0;
         font-family: var(--fontBody);
         background: var(--backgroundColor);
-        color: #222;
+        color: var(--textColor);
       }
       .header {
         position: sticky;

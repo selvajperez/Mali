@@ -29,6 +29,7 @@ export const BACKGROUND_COLOR = "#fafafa";
 export const ACCENT_COLOR = "#444444";
 export const SURFACE_COLOR = "#ffffff";
 export const SECONDARY_TEXT_COLOR = "#888888";
+export const TEXT_COLOR = "#222222";
 
 // URL de Google Fonts a cargar (opcional). Vacío = no se agrega ningún
 // <link> extra al <head>; se usan las fuentes ya instaladas del sistema.
