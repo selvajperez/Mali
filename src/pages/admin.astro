@@ -9,6 +9,10 @@ import {
   DEFAULT_CURRENCY,
   QUICK_ADD_DEFAULT_CATEGORY,
   QUICK_ADD_DEFAULT_STOCK,
+  FONT_HEADING,
+  FONT_BODY,
+  BACKGROUND_COLOR,
+  GOOGLE_FONTS_URL,
 } from "../lib/storeConfig";
 
 const cloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -36,6 +40,7 @@ try {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{STORE_NAME} - Administración</title>
+    {GOOGLE_FONTS_URL && <link rel="stylesheet" href={GOOGLE_FONTS_URL} />}
   </head>
   <body>
     <header>
@@ -196,16 +201,23 @@ try {
       </section>
     </main>
 
-    <PublicationModal brandColor={BRAND_COLOR} />
+    <PublicationModal brandColor={BRAND_COLOR} fontHeading={FONT_HEADING} />
 
-    <style define:vars={{ brandColor: BRAND_COLOR }}>
+    <style
+      define:vars={{
+        brandColor: BRAND_COLOR,
+        fontHeading: FONT_HEADING,
+        fontBody: FONT_BODY,
+        backgroundColor: BACKGROUND_COLOR,
+      }}
+    >
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        font-family: system-ui, sans-serif;
-        background: #fafafa;
+        font-family: var(--fontBody);
+        background: var(--backgroundColor);
         color: #222;
       }
       header {
@@ -215,7 +227,10 @@ try {
       }
       header h1 {
         margin: 0;
+        font-family: var(--fontHeading);
         font-size: 1.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
       main {
         padding: 1rem;
@@ -226,6 +241,7 @@ try {
         margin-bottom: 2rem;
       }
       .seccion h2 {
+        font-family: var(--fontHeading);
         font-size: 1.1rem;
       }
       form {

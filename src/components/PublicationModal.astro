@@ -1,9 +1,10 @@
 ---
 interface Props {
   brandColor?: string;
+  fontHeading?: string;
 }
 
-const { brandColor = "#1a7a3c" } = Astro.props;
+const { brandColor = "#1a7a3c", fontHeading = "system-ui, sans-serif" } = Astro.props;
 ---
 
 <div id="pub-overlay" class="pub-overlay" hidden></div>
@@ -37,7 +38,7 @@ const { brandColor = "#1a7a3c" } = Astro.props;
   </div>
 </section>
 
-<style is:global define:vars={{ brandColor }}>
+<style is:global define:vars={{ brandColor, fontHeading }}>
   .pub-overlay {
     position: fixed;
     inset: 0;
@@ -73,6 +74,7 @@ const { brandColor = "#1a7a3c" } = Astro.props;
   }
   .pub-header h2 {
     margin: 0;
+    font-family: var(--fontHeading);
     font-size: 1.1rem;
   }
   #pub-cerrar {

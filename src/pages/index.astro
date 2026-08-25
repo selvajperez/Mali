@@ -14,6 +14,10 @@ import {
   PAYMENT_METHODS,
   EMPTY_CATALOG_TEXT,
   NO_RESULTS_TEXT,
+  FONT_HEADING,
+  FONT_BODY,
+  BACKGROUND_COLOR,
+  GOOGLE_FONTS_URL,
 } from "../lib/storeConfig";
 
 let products: Awaited<ReturnType<typeof getCatalogProducts>> = [];
@@ -39,6 +43,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{STORE_NAME} - Catálogo</title>
+    {GOOGLE_FONTS_URL && <link rel="stylesheet" href={GOOGLE_FONTS_URL} />}
   </head>
   <body>
     <header class="header">
@@ -110,17 +115,26 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
 
     <PaymentMethodsModal medios={PAYMENT_METHODS} />
 
-    <style define:vars={{ brandColor: BRAND_COLOR, brandColorDark: BRAND_COLOR_DARK }}>
+    <style
+      define:vars={{
+        brandColor: BRAND_COLOR,
+        brandColorDark: BRAND_COLOR_DARK,
+        fontHeading: FONT_HEADING,
+        fontBody: FONT_BODY,
+        backgroundColor: BACKGROUND_COLOR,
+      }}
+    >
       * {
         box-sizing: border-box;
       }
       :root {
         --brand-color: var(--brandColor);
+        --font-heading: var(--fontHeading);
       }
       body {
         margin: 0;
-        font-family: system-ui, sans-serif;
-        background: #fafafa;
+        font-family: var(--fontBody);
+        background: var(--backgroundColor);
         color: #222;
       }
       .header {
@@ -140,9 +154,11 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         justify-content: space-between;
       }
       .logo {
+        font-family: var(--fontHeading);
         font-size: 1.3rem;
         font-weight: 800;
-        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
         color: var(--brandColorDark);
       }
       .logo-img {

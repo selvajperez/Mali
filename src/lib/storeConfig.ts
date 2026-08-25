@@ -11,6 +11,22 @@ export const BRAND_COLOR_DARK = "#14602f";
 // valor, el header muestra esa imagen en su lugar.
 export const STORE_LOGO_URL = "";
 
+// --- Estilo visual (tipografía y fondo) ---
+// Opcionales por tienda. Estos defaults reproducen el look actual del
+// template (fuente del sistema, fondo gris claro) — no cambian nada para
+// un comercio que no las toque.
+
+// Tipografía de títulos/marca (header, h1) vs. cuerpo (todo lo demás:
+// productos, precios, controles, formularios). Mismo default = sin efecto.
+export const FONT_HEADING = "system-ui, sans-serif";
+export const FONT_BODY = "system-ui, sans-serif";
+
+export const BACKGROUND_COLOR = "#fafafa";
+
+// URL de Google Fonts a cargar (opcional). Vacío = no se agrega ningún
+// <link> extra al <head>; se usan las fuentes ya instaladas del sistema.
+export const GOOGLE_FONTS_URL = "";
+
 // --- Contacto ---
 
 // Formato internacional, solo dígitos (sin "+", espacios ni guiones).
