@@ -9,7 +9,7 @@ export const BRAND_COLOR_DARK = "#C9621E";
 
 // Vacío = se muestra STORE_NAME como texto (comportamiento actual). Con un
 // valor, el header muestra esa imagen en su lugar.
-export const STORE_LOGO_URL = "";
+export const STORE_LOGO_URL = "https://res.cloudinary.com/srxrmckc/image/upload/v1787681992/wildsoft-horizontal-wide.png";
 
 // --- Estilo visual (tipografía y fondo) ---
 // Opcionales por tienda. Estos defaults reproducen el look actual del
