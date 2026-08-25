@@ -2,10 +2,10 @@ import type { Currency } from "./currencies";
 
 // --- Identidad ---
 
-export const STORE_NAME = "MUTE";
+export const STORE_NAME = "WildSoft";
 
-export const BRAND_COLOR = "#1a7a3c";
-export const BRAND_COLOR_DARK = "#14602f";
+export const BRAND_COLOR = "#EC7323";
+export const BRAND_COLOR_DARK = "#C9621E";
 
 // Vacío = se muestra STORE_NAME como texto (comportamiento actual). Con un
 // valor, el header muestra esa imagen en su lugar.
@@ -18,22 +18,26 @@ export const STORE_LOGO_URL = "";
 
 // Tipografía de títulos/marca (header, h1) vs. cuerpo (todo lo demás:
 // productos, precios, controles, formularios). Mismo default = sin efecto.
-export const FONT_HEADING = "system-ui, sans-serif";
-export const FONT_BODY = "system-ui, sans-serif";
+// Glacial Indifference (fuente de marca del manual) no está en Google
+// Fonts. Josefin Sans es el sustituto libre más cercano — geométrica y
+// limpia, y es la que el propio manual usa internamente como reemplazo.
+export const FONT_HEADING = "'Josefin Sans', sans-serif";
+export const FONT_BODY = "'Josefin Sans', sans-serif";
 
-export const BACKGROUND_COLOR = "#fafafa";
+export const BACKGROUND_COLOR = "#FDEEDB";
 
 // Acentos secundarios opcionales (etiquetas/chips), superficie de tarjetas y
 // texto/bordes secundarios. Defaults = los grises neutros que ya usaba el
 // template — ningún comercio existente cambia visualmente sin tocar esto.
-export const ACCENT_COLOR = "#444444";
-export const SURFACE_COLOR = "#ffffff";
-export const SECONDARY_TEXT_COLOR = "#888888";
-export const TEXT_COLOR = "#222222";
+export const ACCENT_COLOR = "#71781A";
+export const SURFACE_COLOR = "#FBF2E2";
+export const SECONDARY_TEXT_COLOR = "#302F2E";
+export const TEXT_COLOR = "#151612";
 
 // URL de Google Fonts a cargar (opcional). Vacío = no se agrega ningún
 // <link> extra al <head>; se usan las fuentes ya instaladas del sistema.
-export const GOOGLE_FONTS_URL = "";
+export const GOOGLE_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,400;0,600;1,400&display=swap";
 
 // --- Contacto ---
 
