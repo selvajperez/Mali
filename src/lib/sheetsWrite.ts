@@ -223,3 +223,67 @@ export async function setProductActivo(id: string, activo: boolean): Promise<voi
     },
   });
 }
+
+export interface DeleteProductsResult {
+  deletedIds: string[];
+  notFoundIds: string[];
+}
+
+export async function deleteProducts(ids: string[]): Promise<DeleteProductsResult> {
+  const { sheets, sheetId } = getSheetsClient();
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: "A2:A",
+  });
+  const idsEnHoja = (response.data.values ?? []).map((row) => row[0]?.toString().trim() ?? "");
+
+  const idsUnicos = [...new Set(ids)];
+  const notFoundIds: string[] = [];
+  const filas: number[] = [];
+
+  for (const id of idsUnicos) {
+    const indice = idsEnHoja.findIndex((existente) => existente === id);
+    if (indice === -1) {
+      notFoundIds.push(id);
+    } else {
+      filas.push(indice + 2); // +2: fila 1 = encabezado, arrays 0-based
+    }
+  }
+
+  if (filas.length === 0) {
+    return { deletedIds: [], notFoundIds };
+  }
+
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId: sheetId,
+    fields: "sheets.properties.sheetId",
+  });
+  const gid = meta.data.sheets?.[0]?.properties?.sheetId;
+  if (gid == null) {
+    throw new Error("No se pudo determinar la hoja de cálculo a modificar");
+  }
+
+  // De abajo hacia arriba: filas más altas primero, para que cada borrado no
+  // corra el índice de las filas que todavía faltan borrar.
+  const filasDesc = [...filas].sort((a, b) => b - a);
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: {
+      requests: filasDesc.map((fila) => ({
+        deleteDimension: {
+          range: {
+            sheetId: gid,
+            dimension: "ROWS" as const,
+            startIndex: fila - 1,
+            endIndex: fila,
+          },
+        },
+      })),
+    },
+  });
+
+  const deletedIds = idsUnicos.filter((id) => !notFoundIds.includes(id));
+  return { deletedIds, notFoundIds };
+}

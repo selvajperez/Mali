@@ -153,6 +153,9 @@ try {
               <button type="button" id="btn-deseleccionar-todos" class="btn-seleccion-masiva">
                 Deseleccionar todos
               </button>
+              <button type="button" id="btn-eliminar-seleccionados" class="btn-eliminar-masiva" disabled>
+                Eliminar seleccionados
+              </button>
             </div>
           </div>
         )}
@@ -417,6 +420,18 @@ try {
         border: 1px solid #ccc;
         font-size: 0.85rem;
         padding: 0.5rem;
+      }
+      .btn-eliminar-masiva {
+        flex: 1;
+        background: var(--brandColor);
+        color: #fff;
+        border: none;
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 0.5rem;
+      }
+      .btn-eliminar-masiva:disabled {
+        opacity: 0.5;
       }
       #mensaje-publicacion {
         min-height: 1.2rem;
@@ -1001,7 +1016,9 @@ try {
 
       const contadorSeleccion = document.getElementById("contador-seleccion");
       const btnPreparar = document.getElementById("btn-preparar-publicacion") as HTMLButtonElement | null;
+      const btnEliminarSeleccionados = document.getElementById("btn-eliminar-seleccionados") as HTMLButtonElement | null;
       const mensajePublicacion = document.getElementById("mensaje-publicacion");
+      const mensajeListaEliminar = document.getElementById("mensaje-lista");
       const checkboxes = document.querySelectorAll<HTMLInputElement>(".chk-publicacion");
 
       function mostrarMensajePublicacion(texto: string) {
@@ -1020,6 +1037,7 @@ try {
           contadorSeleccion.textContent = `${seleccionados} seleccionado${seleccionados === 1 ? "" : "s"}`;
         }
         if (btnPreparar) btnPreparar.disabled = seleccionados === 0;
+        if (btnEliminarSeleccionados) btnEliminarSeleccionados.disabled = seleccionados === 0;
       }
 
       checkboxes.forEach((chk) => {
@@ -1052,6 +1070,50 @@ try {
           chk.checked = false;
         });
         actualizarBarra();
+      });
+
+      btnEliminarSeleccionados?.addEventListener("click", async () => {
+        const idsSeleccionados = Array.from(
+          document.querySelectorAll<HTMLInputElement>(".chk-publicacion:checked")
+        )
+          .map((chk) => chk.dataset.id)
+          .filter((id): id is string => Boolean(id));
+
+        if (idsSeleccionados.length === 0) return;
+
+        const cantidad = idsSeleccionados.length;
+        const confirmado = confirm(
+          `¿Eliminar definitivamente ${cantidad} producto${cantidad === 1 ? "" : "s"}? Esta acción no se puede deshacer.`
+        );
+        if (!confirmado) return;
+
+        btnEliminarSeleccionados.disabled = true;
+
+        try {
+          const res = await fetch("/api/products", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: idsSeleccionados }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Error HTTP ${res.status}`);
+          }
+
+          if (mensajeListaEliminar) {
+            mensajeListaEliminar.textContent = `${cantidad} producto${cantidad === 1 ? "" : "s"} eliminado${cantidad === 1 ? "" : "s"}.`;
+            mensajeListaEliminar.className = "ok";
+          }
+          setTimeout(() => location.reload(), 700);
+        } catch (err) {
+          if (mensajeListaEliminar) {
+            mensajeListaEliminar.textContent =
+              "No se pudo eliminar: " + (err instanceof Error ? err.message : "Error desconocido");
+            mensajeListaEliminar.className = "error";
+          }
+          btnEliminarSeleccionados.disabled = false;
+        }
       });
 
       actualizarBarra();

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { appendProduct } from "../../lib/sheetsWrite";
+import { appendProduct, deleteProducts } from "../../lib/sheetsWrite";
 import { isValidCategory } from "../../lib/categories";
 import { isValidCurrency } from "../../lib/currencies";
 
@@ -35,6 +35,36 @@ export const POST: APIRoute = async ({ request }) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error desconocido";
     return jsonError(`No se pudo guardar el producto: ${message}`, 502);
+  }
+};
+
+export const DELETE: APIRoute = async ({ request }) => {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("JSON inválido", 400);
+  }
+
+  const { ids } = body as Record<string, unknown>;
+
+  if (
+    !Array.isArray(ids) ||
+    ids.length === 0 ||
+    !ids.every((id) => typeof id === "string" && id.trim())
+  ) {
+    return jsonError("Se requiere un array de ids no vacío", 400);
+  }
+
+  try {
+    const resultado = await deleteProducts(ids);
+    return new Response(JSON.stringify(resultado), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Error desconocido";
+    return jsonError(`No se pudo eliminar: ${message}`, 502);
   }
 };
 
