@@ -94,6 +94,9 @@ try {
                 <button type="button" id="btn-confirmar-ajuste">Confirmar</button>
                 <button type="button" id="btn-cancelar-ajuste">Cancelar</button>
               </div>
+              <button type="button" id="btn-usar-completa" class="btn-usar-completa">
+                Usar imagen completa (sin recortar)
+              </button>
             </div>
 
             <p id="foto-mensaje" role="status"></p>
@@ -330,6 +333,10 @@ try {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+      }
+      .btn-usar-completa {
+        width: 100%;
+        background: #fff;
       }
       #ajuste-contenedor[hidden] {
         display: none;
@@ -756,6 +763,37 @@ try {
       cropCanvas.addEventListener("pointercancel", terminarDragCrop);
 
       btnCancelarAjuste.addEventListener("click", cerrarAjuste);
+
+      const btnUsarCompleta = document.getElementById("btn-usar-completa");
+
+      // Sube la foto tal cual fue elegida, sin pasar por el recorte fijo
+      // 4:5 (útil para imágenes muy verticales, tipo póster, que quedarían
+      // demasiado chicas si se las obliga a esa proporción).
+      btnUsarCompleta.addEventListener("click", async () => {
+        fotoMensaje.textContent = "Subiendo foto...";
+        fotoMensaje.className = "";
+
+        try {
+          const canvasCompleto = document.createElement("canvas");
+          canvasCompleto.width = cropNaturalWidth;
+          canvasCompleto.height = cropNaturalHeight;
+          canvasCompleto.getContext("2d").drawImage(cropBitmap, 0, 0);
+
+          const blob = await new Promise((resolve, reject) => {
+            canvasCompleto.toBlob(
+              (b) => (b ? resolve(b) : reject(new Error("No se pudo generar el JPEG"))),
+              "image/jpeg",
+              0.85
+            );
+          });
+          cerrarAjuste();
+          const info = await subirACloudinary(blob);
+          mostrarFotoOk(info);
+        } catch (err) {
+          cerrarAjuste();
+          mostrarFotoError(err);
+        }
+      });
 
       btnConfirmarAjuste.addEventListener("click", async () => {
         fotoMensaje.textContent = "Subiendo foto...";
