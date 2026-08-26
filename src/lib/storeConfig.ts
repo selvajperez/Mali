@@ -61,12 +61,13 @@ export const FACEBOOK_URL = "";
 
 export const CATEGORIES = [
   "Hogar",
-  "Cocina",
-  "Belleza",
-  "Tecnología",
-  "Accesorios",
-  "Textil",
-  "Otros",
+  "Mantenimiento",
+  "Bienestar",
+  "Seguridad",
+  "Movilidad",
+  "Educación",
+  "Entretenimiento",
+  "Familia",
 ] as const;
 
 // Usada como fallback cuando un producto no tiene moneda válida (filas
