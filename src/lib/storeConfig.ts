@@ -101,7 +101,10 @@ export const PRODUCT_ID_PREFIX = "MUT";
 
 // Valores automáticos del modo "Carga rápida" del admin (categoría y stock;
 // la moneda usa DEFAULT_CURRENCY de arriba). Cada tienda define los suyos.
-export const QUICK_ADD_DEFAULT_CATEGORY: (typeof CATEGORIES)[number] = "Otros";
+// Categoría "" = sin default: el campo Categoría queda visible también en
+// Carga rápida para que el comerciante la elija a mano (no hay una que sirva
+// de "cajón de sastre" entre las categorías actuales).
+export const QUICK_ADD_DEFAULT_CATEGORY: (typeof CATEGORIES)[number] | "" = "";
 export const QUICK_ADD_DEFAULT_STOCK = 1;
 
 // --- Medios de pago ---

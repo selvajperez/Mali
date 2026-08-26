@@ -570,11 +570,14 @@ try {
         modoActual = modo;
         const esRapido = modo === "rapido";
         campoMonedaDiv.hidden = esRapido;
-        campoCategoriaDiv.hidden = esRapido;
+        // Sin categoría por defecto (quickAddDefaultCategory === ""), el
+        // campo queda visible también en Carga rápida: no hay valor válido
+        // para precargar en un campo oculto.
+        campoCategoriaDiv.hidden = esRapido && Boolean(quickAddDefaultCategory);
         campoStockDiv.hidden = esRapido;
         if (esRapido) {
           campoMoneda.value = defaultCurrency;
-          campoCategoria.value = quickAddDefaultCategory;
+          if (quickAddDefaultCategory) campoCategoria.value = quickAddDefaultCategory;
           campoStock.value = quickAddDefaultStock;
         }
         btnModoRapido.classList.toggle("activo", esRapido);
