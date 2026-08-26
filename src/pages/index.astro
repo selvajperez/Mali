@@ -9,6 +9,7 @@ import {
   BRAND_COLOR,
   BRAND_COLOR_DARK,
   STORE_LOGO_URL,
+  PARENT_BRAND_MARK_URL,
   INSTAGRAM_URL,
   FACEBOOK_URL,
   PAYMENT_METHODS,
@@ -55,7 +56,12 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         {STORE_LOGO_URL ? (
           <img src={STORE_LOGO_URL} alt={STORE_NAME} class="logo-img" />
         ) : (
-          <span class="logo">{STORE_NAME}</span>
+          <span class="logo">
+            {PARENT_BRAND_MARK_URL && (
+              <img src={PARENT_BRAND_MARK_URL} alt="" class="logo-mark" />
+            )}
+            {STORE_NAME}
+          </span>
         )}
         <button type="button" id="btn-carrito" class="btn-carrito" aria-label="Ver carrito">
           🛒
@@ -165,6 +171,9 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         justify-content: space-between;
       }
       .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
         font-family: var(--fontHeading);
         font-size: 1.3rem;
         font-weight: 800;
@@ -176,6 +185,12 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         max-height: 2rem;
         max-width: 55vw;
         display: block;
+      }
+      .logo-mark {
+        height: 1.5rem;
+        width: auto;
+        display: block;
+        flex-shrink: 0;
       }
       .btn-carrito {
         position: relative;

@@ -13,6 +13,14 @@ export const BRAND_COLOR_DARK = "#A80000";
 // valor, el header muestra esa imagen en su lugar.
 export const STORE_LOGO_URL = "";
 
+// Firma opcional de la marca madre (isotipo), mostrada junto al nombre de la
+// tienda cuando STORE_LOGO_URL está vacío: [isotipo] STORE_NAME. Vacío = no
+// se agrega nada (comportamiento actual). Isotipo WildSoft 2.0 (variante
+// "negativo": zorro blanco + ojo rojo, fondo transparente) para el header
+// negro de MUTE.
+export const PARENT_BRAND_MARK_URL =
+  "https://res.cloudinary.com/srxrmckc/image/upload/v1787747306/wildsoft-isotipo-negativo.svg";
+
 // --- Estilo visual (tipografía y fondo) ---
 // Opcionales por tienda. Estos defaults reproducen el look actual del
 // template (fuente del sistema, fondo gris claro) — no cambian nada para
