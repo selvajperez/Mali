@@ -55,14 +55,9 @@ export const FACEBOOK_URL = "";
 // --- Catálogo ---
 
 export const CATEGORIES = [
-  "Hogar",
-  "Mantenimiento",
-  "Bienestar",
-  "Seguridad",
-  "Movilidad",
-  "Educación",
-  "Entretenimiento",
-  "Familia",
+  "Clásicos",
+  "Silvestres",
+  "Especiales",
 ] as const;
 
 // Usada como fallback cuando un producto no tiene moneda válida (filas
