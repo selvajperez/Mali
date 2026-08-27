@@ -254,7 +254,7 @@ try {
         color: var(--brandColor);
       }
       .logo-img {
-        max-height: 2rem;
+        max-height: 3.2rem;
         max-width: 80vw;
         display: block;
       }
@@ -576,11 +576,6 @@ try {
       const campoCategoria = document.getElementById("categoria");
       const campoStock = document.getElementById("stock");
 
-      // --- Carga rápida vs. Carga completa: mismo formulario, mismo submit,
-      // mismo endpoint. Solo se ocultan Moneda/Categoría/Stock y se les
-      // precarga un valor por defecto (storeConfig.ts); al ocultarlos con el
-      // atributo "hidden" quedan afuera de la validación HTML5, así que no
-      // bloquean el submit aunque sigan "required". ---
       const btnModoRapido = document.getElementById("btn-modo-rapido");
       const btnModoCompleta = document.getElementById("btn-modo-completa");
       const campoMonedaDiv = document.getElementById("campo-moneda");
@@ -593,9 +588,6 @@ try {
         modoActual = modo;
         const esRapido = modo === "rapido";
         campoMonedaDiv.hidden = esRapido;
-        // Sin categoría por defecto (quickAddDefaultCategory === ""), el
-        // campo queda visible también en Carga rápida: no hay valor válido
-        // para precargar en un campo oculto.
         campoCategoriaDiv.hidden = esRapido && Boolean(quickAddDefaultCategory);
         campoStockDiv.hidden = esRapido;
         if (esRapido) {
@@ -609,9 +601,6 @@ try {
 
       btnModoRapido.addEventListener("click", () => aplicarModoCarga("rapido"));
       btnModoCompleta.addEventListener("click", () => aplicarModoCarga("completa"));
-
-      // Arranca en Carga rápida: es el flujo pensado para publicar parado en
-      // el local/proveedor, sacando la foto y cargando nombre + precio.
       aplicarModoCarga("rapido");
 
       let editingId = null;
@@ -654,17 +643,6 @@ try {
 
       btnCancelarEdicion.addEventListener("click", salirModoEdicion);
 
-      // --- Foto: mismo mecanismo validado en /test-camera (getUserMedia,
-      // sin depender del Cloudinary Upload Widget, que fallaba con "Memoria
-      // insuficiente" al sacar fotos desde la camara nativa de Android en
-      // equipos de gama media), mas un paso de ajuste (recorte 4:5, mover y
-      // zoom) antes de redimensionar y subir. ---
-
-      // Tamaño final fijo (tambien es la resolucion interna del canvas de
-      // ajuste, asi "Confirmar" ya genera el JPEG final sin un segundo
-      // resize). Formato 4:5. Se deja como constante para poder generar mas
-      // adelante otros formatos (ej. cuadrado para redes) sin tocar la
-      // lógica de recorte/zoom, solo estos dos numeros.
       const CROP_WIDTH = 1024;
       const CROP_HEIGHT = 1280;
       const ZOOM_MAX_MULTIPLIER = 3;
@@ -749,7 +727,7 @@ try {
       cropCanvas.addEventListener("pointermove", (e) => {
         if (!cropDragging) return;
         const rect = cropCanvas.getBoundingClientRect();
-        const factor = CROP_WIDTH / rect.width / cropScale; // px en pantalla -> px de la imagen fuente
+        const factor = CROP_WIDTH / rect.width / cropScale;
         cropCenterX = cropDragStartCenterX - (e.clientX - cropDragStartX) * factor;
         cropCenterY = cropDragStartCenterY - (e.clientY - cropDragStartY) * factor;
         clampCropCenter();
@@ -766,19 +744,14 @@ try {
 
       const btnUsarCompleta = document.getElementById("btn-usar-completa");
 
-      // Sube la foto tal cual fue elegida, sin pasar por el recorte fijo
-      // 4:5 (útil para imágenes muy verticales, tipo póster, que quedarían
-      // demasiado chicas si se las obliga a esa proporción).
       btnUsarCompleta.addEventListener("click", async () => {
         fotoMensaje.textContent = "Subiendo foto...";
         fotoMensaje.className = "";
-
         try {
           const canvasCompleto = document.createElement("canvas");
           canvasCompleto.width = cropNaturalWidth;
           canvasCompleto.height = cropNaturalHeight;
           canvasCompleto.getContext("2d").drawImage(cropBitmap, 0, 0);
-
           const blob = await new Promise((resolve, reject) => {
             canvasCompleto.toBlob(
               (b) => (b ? resolve(b) : reject(new Error("No se pudo generar el JPEG"))),
@@ -798,7 +771,6 @@ try {
       btnConfirmarAjuste.addEventListener("click", async () => {
         fotoMensaje.textContent = "Subiendo foto...";
         fotoMensaje.className = "";
-
         try {
           const blob = await new Promise((resolve, reject) => {
             cropCanvas.toBlob(
@@ -820,17 +792,14 @@ try {
         const formData = new FormData();
         formData.append("file", blob, "foto.jpg");
         formData.append("upload_preset", uploadPreset);
-
         const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
           method: "POST",
           body: formData,
         });
-
         if (!res.ok) {
           const cuerpo = await res.json().catch(() => ({}));
           throw new Error(cuerpo?.error?.message || `Error HTTP ${res.status}`);
         }
-
         return res.json();
       }
 
@@ -877,13 +846,11 @@ try {
       btnSacarFoto.addEventListener("click", async () => {
         fotoMensaje.textContent = "";
         fotoMensaje.className = "";
-
         if (!navigator.mediaDevices?.getUserMedia) {
           fotoMensaje.textContent = "Este navegador no permite usar la cámara acá. Usá 'Elegir de galería'.";
           fotoMensaje.className = "error";
           return;
         }
-
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
@@ -908,7 +875,7 @@ try {
         try {
           await esperarVideoListo(video);
           const bitmap = await createImageBitmap(video);
-          cerrarCamara(); // ya tenemos el frame: apagamos la camara antes de ajustar/subir
+          cerrarCamara();
           abrirAjuste(bitmap);
         } catch (err) {
           cerrarCamara();
@@ -928,7 +895,6 @@ try {
         const file = inputGaleria.files?.[0];
         inputGaleria.value = "";
         if (!file) return;
-
         try {
           const bitmap = await createImageBitmap(file);
           abrirAjuste(bitmap);
@@ -941,15 +907,12 @@ try {
         e.preventDefault();
         mensaje.textContent = "";
         mensaje.className = "";
-
         const editando = editingId !== null;
-
         if (!editando && !fotoUrlInput.value) {
           mensaje.textContent = "Elegí una foto antes de publicar.";
           mensaje.className = "error";
           return;
         }
-
         const payload = {
           fotoUrl: fotoUrlInput.value,
           producto: campoProducto.value,
@@ -958,27 +921,22 @@ try {
           categoria: campoCategoria.value,
           stock: Number(campoStock.value),
         };
-
         btnPublicar.disabled = true;
         mensaje.textContent = editando ? "Guardando cambios..." : "Publicando...";
-
         try {
           const res = await fetch(editando ? `/api/products/${editingId}` : "/api/products", {
             method: editando ? "PATCH" : "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             throw new Error(data.error || `Error HTTP ${res.status}`);
           }
-
           if (editando) {
             location.reload();
             return;
           }
-
           mensaje.textContent = "Producto publicado.";
           mensaje.className = "ok";
           form.reset();
@@ -986,9 +944,6 @@ try {
           fotoUrlInput.value = "";
           fotoMensaje.textContent = "";
           fotoMensaje.className = "";
-          // form.reset() vuelve moneda/categoría/stock a su valor HTML por
-          // defecto (los limpia); en Carga rápida hay que reponerles el
-          // valor automático para que la próxima carga funcione igual.
           aplicarModoCarga(modoActual);
         } catch (err) {
           mensaje.textContent = (editando ? "No se pudo guardar: " : "No se pudo publicar: ") + err.message;
@@ -1007,7 +962,6 @@ try {
 
       document.querySelectorAll(".product-card").forEach((card) => {
         const id = card.dataset.productId;
-
         card.querySelector(".btn-editar").addEventListener("click", (e) => {
           const btn = e.currentTarget;
           entrarModoEdicion({
@@ -1020,7 +974,6 @@ try {
             moneda: btn.dataset.moneda,
           });
         });
-
         card.querySelector(".btn-toggle-activo").addEventListener("click", async (e) => {
           const btn = e.currentTarget;
           const activoActual = btn.dataset.activo === "true";
@@ -1192,7 +1145,6 @@ try {
         return seleccionados;
       }
 
-      // --- Modal de publicación ---
       const pubOverlay = document.getElementById("pub-overlay");
       const pubModal = document.getElementById("pub-modal");
       const pubCerrar = document.getElementById("pub-cerrar");
@@ -1274,7 +1226,6 @@ try {
           return;
         }
 
-        // Dos placas.
         if (puedeCompartir() && puedeCompartirVarios(files)) {
           pubAccionesCompartir.appendChild(
             crearBoton("Compartir (2 imágenes)", true, async () => {
@@ -1375,8 +1326,6 @@ try {
 
         try {
           const blobs: Blob[] = [];
-          // Secuencial (no Promise.all): evita mantener varios canvases/fotos
-          // decodificadas en memoria al mismo tiempo (importa en gama media).
           for (const grupo of grupos) {
             blobs.push(await generarPlaca(grupo, branding, PUBLICATION_TITLE));
           }
