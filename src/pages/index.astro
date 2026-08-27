@@ -182,8 +182,8 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         color: var(--brandColor);
       }
       .logo-img {
-        max-height: 2rem;
-        max-width: 55vw;
+        max-height: 3.2rem;
+        max-width: 62vw;
         display: block;
       }
       .logo-mark {
@@ -548,8 +548,6 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
 
       cartWhatsapp?.addEventListener("click", async () => {
         if (carrito.length === 0) return;
-        // Se abre la ventana ya (sync con el click) para que Safari/iOS no bloquee el popup
-        // cuando recién después del fetch sabemos la URL final.
         const ventana = window.open("", "_blank");
         const stockPorId = await obtenerStockDisponible(carrito);
         const mensaje = buildWhatsAppMessage(carrito, stockPorId, {
@@ -576,7 +574,6 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
 
       renderCarrito();
 
-      // --- Medios de pago ---
       const btnMediosPago = document.getElementById("btn-medios-pago");
       const mediosOverlay = document.getElementById("medios-overlay");
       const mediosModal = document.getElementById("medios-modal");
