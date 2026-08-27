@@ -2,51 +2,46 @@ import type { Currency } from "./currencies";
 
 // --- Identidad ---
 
-export const STORE_NAME = "MUTE";
+export const STORE_NAME = "Mali";
 
-// Rojo intenso como único color de acento (piel "Súper Sónicos": negro +
-// rojo + blanco, estética técnica/robótica).
-export const BRAND_COLOR = "#E10600";
-export const BRAND_COLOR_DARK = "#A80000";
+// Territorio "Tallo": musgo como color de marca y coral reservado para
+// detalles mínimos. El crema y el carbón sostienen una estética fresca,
+// delicada y editorial.
+export const BRAND_COLOR = "#53624A";
+export const BRAND_COLOR_DARK = "#3F4B38";
 
 // Vacío = se muestra STORE_NAME como texto (comportamiento actual). Con un
 // valor, el header muestra esa imagen en su lugar.
 export const STORE_LOGO_URL = "";
 
-// Firma opcional de la marca madre (isotipo), mostrada junto al nombre de la
-// tienda cuando STORE_LOGO_URL está vacío: [isotipo] STORE_NAME. Vacío = no
-// se agrega nada (comportamiento actual). Isotipo WildSoft 2.0 (variante
-// "negativo": zorro blanco + ojo rojo, fondo transparente) para el header
-// negro de MUTE.
-export const PARENT_BRAND_MARK_URL =
-  "https://res.cloudinary.com/srxrmckc/image/upload/v1787747306/wildsoft-isotipo-negativo.svg";
+// Mali se presenta como marca independiente. Cuando esté listo el logo final,
+// se podrá incorporar arriba mediante STORE_LOGO_URL.
+export const PARENT_BRAND_MARK_URL = "";
 
 // --- Estilo visual (tipografía y fondo) ---
 // Opcionales por tienda. Estos defaults reproducen el look actual del
 // template (fuente del sistema, fondo gris claro) — no cambian nada para
 // un comercio que no las toque.
 
-// Tipografía de títulos/marca (header, h1) vs. cuerpo (todo lo demás:
-// productos, precios, controles, formularios). Archivo Black para la marca
-// (contundente, editorial); Archivo para el cuerpo (misma familia, legible
-// en textos largos).
-export const FONT_HEADING = "'Archivo Black', sans-serif";
-export const FONT_BODY = "'Archivo', sans-serif";
+// Cormorant Garamond aporta el gesto editorial en títulos y DM Sans mantiene
+// el catálogo limpio y legible en textos, precios y controles.
+export const FONT_HEADING = "'Cormorant Garamond', Georgia, serif";
+export const FONT_BODY = "'DM Sans', Arial, sans-serif";
 
-export const BACKGROUND_COLOR = "#FFFFFF";
+export const BACKGROUND_COLOR = "#F6F1E7";
 
 // Acentos secundarios opcionales (etiquetas/chips), superficie de tarjetas y
 // texto/bordes secundarios. Defaults = los grises neutros que ya usaba el
 // template — ningún comercio existente cambia visualmente sin tocar esto.
-export const ACCENT_COLOR = "#111111";
-export const SURFACE_COLOR = "#FFFFFF";
-export const SECONDARY_TEXT_COLOR = "#4A4A4A";
-export const TEXT_COLOR = "#0A0A0A";
+export const ACCENT_COLOR = "#D96B5F";
+export const SURFACE_COLOR = "#FBF8F1";
+export const SECONDARY_TEXT_COLOR = "#65705E";
+export const TEXT_COLOR = "#252521";
 
 // URL de Google Fonts a cargar (opcional). Vacío = no se agrega ningún
 // <link> extra al <head>; se usan las fuentes ya instaladas del sistema.
 export const GOOGLE_FONTS_URL =
-  "https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Black&display=swap";
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap";
 
 // --- Contacto ---
 

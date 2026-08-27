@@ -89,7 +89,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
     )}
 
     <main>
-      {error && <p class="error">No se pudo cargar el catálogo: {error}</p>}
+      {error && <p class="error">El catálogo estará disponible pronto.</p>}
       {!error && products.length === 0 && <p class="vacio">{EMPTY_CATALOG_TEXT}</p>}
       {!error && products.length > 0 && (
         <div class="grid" id="grid-productos">
@@ -158,12 +158,12 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #000;
-        border-bottom: 2px solid var(--brandColor);
-        padding: 0.75rem 1rem;
+        background: var(--backgroundColor);
+        border-bottom: 1px solid color-mix(in srgb, var(--brandColor) 28%, transparent);
+        padding: 1.1rem 1.25rem 1rem;
         display: flex;
         flex-direction: column;
-        gap: 0.6rem;
+        gap: 0.9rem;
       }
       .header-top {
         display: flex;
@@ -175,10 +175,10 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         align-items: center;
         gap: 0.4rem;
         font-family: var(--fontHeading);
-        font-size: 1.3rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+        font-size: 2rem;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.02em;
         color: var(--brandColor);
       }
       .logo-img {
@@ -194,9 +194,9 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
       }
       .btn-carrito {
         position: relative;
-        border: 1px solid var(--brandColor);
-        background: #000;
-        color: #fff;
+        border: 1px solid color-mix(in srgb, var(--brandColor) 42%, transparent);
+        background: transparent;
+        color: var(--textColor);
         border-radius: 999px;
         width: 2.5rem;
         height: 2.5rem;
@@ -209,8 +209,8 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         position: absolute;
         top: -0.3rem;
         right: -0.3rem;
-        background: var(--brandColor);
-        color: #fff;
+        background: var(--accentColor);
+        color: var(--surfaceColor);
         font-size: 0.65rem;
         font-weight: 700;
         min-width: 1.1rem;
@@ -223,27 +223,28 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
       }
       .buscador {
         width: 100%;
-        padding: 0.65rem 0.9rem;
-        border-radius: 6px;
-        border: 1px solid #333;
+        padding: 0.8rem 0;
+        border-radius: 0;
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--brandColor) 35%, transparent);
         font-size: 0.95rem;
-        background: #111;
-        color: #fff;
+        background: transparent;
+        color: var(--textColor);
       }
       .buscador::placeholder {
-        color: #999;
+        color: var(--secondaryTextColor);
       }
       .buscador:focus {
-        outline: 2px solid var(--brandColor);
-        background: #000;
+        outline: none;
+        border-bottom-color: var(--brandColor);
       }
       .categorias {
         display: flex;
         gap: 0.5rem;
         overflow-x: auto;
         padding: 0.65rem 1rem;
-        background: #000;
-        border-bottom: 1px solid #222;
+        background: var(--backgroundColor);
+        border-bottom: 1px solid color-mix(in srgb, var(--brandColor) 22%, transparent);
         scrollbar-width: none;
       }
       .categorias::-webkit-scrollbar {
@@ -251,24 +252,23 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
       }
       .chip {
         flex-shrink: 0;
-        border: 1px solid #fff;
+        border: 1px solid color-mix(in srgb, var(--brandColor) 45%, transparent);
         background: transparent;
-        color: #fff;
-        border-radius: 4px;
+        color: var(--brandColor);
+        border-radius: 999px;
         padding: 0.4rem 0.9rem;
         font-size: 0.85rem;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
+        letter-spacing: 0;
         white-space: nowrap;
       }
       .chip-activo {
         background: var(--brandColor);
         border-color: var(--brandColor);
-        color: #fff;
+        color: var(--surfaceColor);
       }
       main {
-        padding: 1rem;
+        padding: 1.5rem 1.25rem;
       }
       .grid {
         display: grid;
@@ -276,7 +276,11 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
         gap: 0.75rem;
       }
       .error {
-        color: var(--brandColor);
+        max-width: 24rem;
+        margin: 2.5rem auto;
+        color: var(--secondaryTextColor);
+        text-align: center;
+        line-height: 1.6;
       }
       .vacio {
         color: var(--secondaryTextColor);
