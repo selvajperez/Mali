@@ -10,12 +10,11 @@ export const STORE_NAME = "Mali";
 export const BRAND_COLOR = "#53624A";
 export const BRAND_COLOR_DARK = "#3F4B38";
 
-// Vacío = se muestra STORE_NAME como texto (comportamiento actual). Con un
-// valor, el header muestra esa imagen en su lugar.
-export const STORE_LOGO_URL = "";
+// Logo horizontal musgo ya subido a Cloudinary para el header.
+export const STORE_LOGO_URL =
+  "https://res.cloudinary.com/srxrmckc/image/upload/mali/branding/mali-lockup-horizontal-musgo.svg";
 
-// Mali se presenta como marca independiente. Cuando esté listo el logo final,
-// se podrá incorporar arriba mediante STORE_LOGO_URL.
+// Mali se presenta como marca independiente.
 export const PARENT_BRAND_MARK_URL = "";
 
 // --- Estilo visual (tipografía y fondo) ---
