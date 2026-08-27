@@ -44,7 +44,7 @@ export const GOOGLE_FONTS_URL =
 // --- Contacto ---
 
 // Formato internacional, solo dígitos (sin "+", espacios ni guiones).
-export const WHATSAPP_PHONE = "5491159657132";
+export const WHATSAPP_PHONE = "5491133076423";
 
 // Vacíos = no se muestra el link correspondiente en el catálogo.
 export const INSTAGRAM_URL = "";
