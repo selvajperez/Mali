@@ -10,9 +10,8 @@ export const STORE_NAME = "Mali";
 export const BRAND_COLOR = "#53624A";
 export const BRAND_COLOR_DARK = "#3F4B38";
 
-// Logo horizontal musgo ya subido a Cloudinary para el header.
 export const STORE_LOGO_URL =
-  "https://res.cloudinary.com/srxrmckc/image/upload/mali/branding/mali-lockup-horizontal-musgo.svg";
+  "https://res.cloudinary.com/srxrmckc/image/upload/v1787867613/mali-lockup-principal-musgo-tienda-de-flores.svg";
 
 // Mali se presenta como marca independiente.
 export const PARENT_BRAND_MARK_URL = "";
