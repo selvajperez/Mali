@@ -1,0 +1,89 @@
+---
+---
+
+<div id="lightbox" class="lightbox" hidden>
+  <button type="button" id="lightbox-cerrar" class="lightbox-cerrar" aria-label="Cerrar imagen">✕</button>
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<style is:global>
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .lightbox[hidden] {
+    display: none;
+  }
+  .lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+  .lightbox-cerrar {
+    position: fixed;
+    top: 0.5rem;
+    right: 0.75rem;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 1.8rem;
+    line-height: 1;
+    padding: 0.5rem;
+    cursor: pointer;
+    z-index: 41;
+  }
+  @media (min-width: 640px) {
+    .lightbox {
+      padding: 3rem;
+    }
+    .lightbox img {
+      max-width: 85vw;
+      max-height: 85vh;
+    }
+  }
+</style>
+
+<script>
+  const lightbox = document.getElementById("lightbox");
+  const lightboxImg = document.getElementById("lightbox-img") as HTMLImageElement | null;
+  const btnCerrar = document.getElementById("lightbox-cerrar");
+
+  function abrirLightbox(src: string, alt: string) {
+    if (!lightbox || !lightboxImg) return;
+    lightboxImg.src = src;
+    lightboxImg.alt = alt;
+    lightbox.hidden = false;
+  }
+
+  function cerrarLightbox() {
+    if (!lightbox || !lightboxImg) return;
+    lightbox.hidden = true;
+    lightboxImg.src = "";
+  }
+
+  document.querySelectorAll<HTMLButtonElement>(".foto-zoom").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { foto, nombre } = btn.dataset;
+      if (foto) abrirLightbox(foto, nombre ?? "");
+    });
+  });
+
+  btnCerrar?.addEventListener("click", cerrarLightbox);
+
+  lightbox?.addEventListener("click", (e) => {
+    if (e.target === lightbox) cerrarLightbox();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && lightbox && !lightbox.hidden) cerrarLightbox();
+  });
+</script>

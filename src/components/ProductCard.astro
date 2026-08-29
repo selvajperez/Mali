@@ -23,7 +23,15 @@ const puedeAgregar = product.estado !== "Agotado";
   data-categoria={product.categoria}
 >
   <div class="foto">
-    <img src={product.fotoUrl} alt={product.producto} loading="lazy" />
+    <button
+      type="button"
+      class="foto-zoom"
+      data-foto={product.fotoUrl}
+      data-nombre={product.producto}
+      aria-label={`Ver imagen ampliada de ${product.producto}`}
+    >
+      <img src={product.fotoUrl} alt={product.producto} loading="lazy" />
+    </button>
     <span class={`estado ${estadoClase[product.estado]}`}>{product.estado}</span>
   </div>
   <div class="info">
@@ -60,6 +68,15 @@ const puedeAgregar = product.estado !== "Agotado";
   }
   .foto {
     position: relative;
+  }
+  .foto-zoom {
+    display: block;
+    width: 100%;
+    border: none;
+    margin: 0;
+    padding: 0;
+    background: none;
+    cursor: zoom-in;
   }
   .foto img {
     width: 100%;

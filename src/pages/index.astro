@@ -2,6 +2,7 @@
 import ProductCard from "../components/ProductCard.astro";
 import CartDrawer from "../components/CartDrawer.astro";
 import PaymentMethodsModal from "../components/PaymentMethodsModal.astro";
+import ImageLightbox from "../components/ImageLightbox.astro";
 import { getCatalogProducts } from "../lib/sheets";
 import { CATEGORIES } from "../lib/categories";
 import {
@@ -78,6 +79,7 @@ const hayLinksSociales = Boolean(INSTAGRAM_URL || FACEBOOK_URL);
     </header>
 
     <CartDrawer />
+    <ImageLightbox />
 
     {!error && categoriasPresentes.length > 0 && (
       <nav class="categorias" aria-label="Filtrar por categoría">
